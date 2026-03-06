@@ -185,7 +185,7 @@ def api_test_connection():
 
 
 VISION_BASE_URL = os.environ.get("VISION_BASE_URL", "http://127.0.0.1:30000/v1")
-VISION_MODEL = os.environ.get("VISION_MODEL", "/data/share/eval_model/base/Qwen/Qwen3.5-9B")
+VISION_MODEL = os.environ.get("VISION_MODEL", "/data/share/eval_model/base/Qwen/Qwen3.5-2B")
 
 
 def _resolve_vision(data: dict) -> tuple[str, str]:

@@ -188,23 +188,44 @@ VISION_BASE_URL = os.environ.get("VISION_BASE_URL", "http://127.0.0.1:30000/v1")
 VISION_MODEL = os.environ.get("VISION_MODEL", "/data/share/eval_model/base/Qwen/Qwen3.5-9B")
 
 
+def _resolve_vision(data: dict) -> tuple[str, str]:
+    """Return (base_url, model) with optional client-side overrides."""
+    url = (data.get("vision_url") or "").strip() or VISION_BASE_URL
+    model = (data.get("vision_model") or "").strip() or VISION_MODEL
+    return url, model
+
+
+@app.route("/api/vision-test", methods=["POST"])
+def api_vision_test():
+    """Quick connectivity test for the vision model endpoint."""
+    data = request.json or {}
+    url, model = _resolve_vision(data)
+    try:
+        client = OpenAI(base_url=url, api_key="EMPTY")
+        models = client.models.list()
+        names = [m.id for m in models.data][:3]
+        return jsonify({"ok": True, "model": ", ".join(names) if names else model})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
 @app.route("/api/vision", methods=["POST"])
 def api_vision():
-    """Process image/PDF via local vision model (sglang + Qwen3.5-9B)."""
-    import base64 as b64mod
+    """Process image via local vision model."""
     data = request.json or {}
     image_b64 = data.get("image", "")
     prompt = data.get("prompt", "Describe this image in detail. If it contains text, extract the text content.")
     if not image_b64:
         return jsonify({"content": "", "error": "No image data"})
+    url, model = _resolve_vision(data)
     try:
-        client = OpenAI(base_url=VISION_BASE_URL, api_key="EMPTY")
+        client = OpenAI(base_url=url, api_key="EMPTY")
         messages = [{"role": "user", "content": [
             {"type": "text", "text": prompt},
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
         ]}]
         resp = client.chat.completions.create(
-            model=VISION_MODEL, messages=messages, max_tokens=2048, temperature=0.3,
+            model=model, messages=messages, max_tokens=2048, temperature=0.3,
         )
         raw = resp.choices[0].message.content or ""
         return jsonify({"content": _strip_think(raw)})
@@ -214,9 +235,11 @@ def api_vision():
 
 @app.route("/api/parse-pdf", methods=["POST"])
 def api_parse_pdf():
-    """Parse PDF by rendering pages to images and sending to vision model."""
+    """Parse PDF: native text extraction first, vision model fallback for image-heavy pages."""
     import base64 as b64mod
     import tempfile
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     f = request.files.get("file")
     if not f:
         return jsonify({"content": "", "error": "No file uploaded"})
@@ -224,32 +247,61 @@ def api_parse_pdf():
         import fitz  # PyMuPDF
     except ImportError:
         return jsonify({"content": "", "error": "PyMuPDF not installed. Run: pip install pymupdf"})
+
+    vis_url = (request.form.get("vision_url") or "").strip() or VISION_BASE_URL
+    vis_model = (request.form.get("vision_model") or "").strip() or VISION_MODEL
+    MIN_TEXT_CHARS = 80
+
+    def _vision_ocr_page(page_num: int, pix_bytes: bytes) -> str:
+        b64 = b64mod.b64encode(pix_bytes).decode("utf-8")
+        try:
+            client = OpenAI(base_url=vis_url, api_key="EMPTY")
+            msgs = [{"role": "user", "content": [
+                {"type": "text", "text": "Extract ALL text from this page. Output plain text only."},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            ]}]
+            resp = client.chat.completions.create(
+                model=vis_model, messages=msgs, max_tokens=1536, temperature=0.1,
+            )
+            return _strip_think(resp.choices[0].message.content or "")
+        except Exception as e:
+            return f"[Vision error: {e}]"
+
     try:
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
             f.save(tmp.name)
             doc = fitz.open(tmp.name)
-            all_text = []
-            max_pages = min(len(doc), 5)
+            total_pages = len(doc)
+            max_pages = min(total_pages, 10)
+            all_text = [""] * max_pages
+            vision_tasks = {}
+            native_count = 0
+
             for i in range(max_pages):
                 page = doc[i]
-                pix = page.get_pixmap(dpi=200)
-                img_bytes = pix.tobytes("png")
-                b64 = b64mod.b64encode(img_bytes).decode("utf-8")
-                try:
-                    client = OpenAI(base_url=VISION_BASE_URL, api_key="EMPTY")
-                    msgs = [{"role": "user", "content": [
-                        {"type": "text", "text": f"Extract ALL text from page {i+1} of this PDF. Include titles, authors, abstracts, formulas, and body text. Output as plain text."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                    ]}]
-                    resp = client.chat.completions.create(
-                        model=VISION_MODEL, messages=msgs, max_tokens=2048, temperature=0.1,
-                    )
-                    raw = resp.choices[0].message.content or ""
-                    all_text.append(f"--- Page {i+1} ---\n{_strip_think(raw)}")
-                except Exception as e:
-                    all_text.append(f"--- Page {i+1} ---\n[Vision error: {e}]")
+                text = page.get_text("text").strip()
+                if len(text) >= MIN_TEXT_CHARS:
+                    all_text[i] = f"--- Page {i+1} ---\n{text}"
+                    native_count += 1
+                else:
+                    pix = page.get_pixmap(dpi=150)
+                    vision_tasks[i] = pix.tobytes("png")
+
+            if vision_tasks:
+                with ThreadPoolExecutor(max_workers=min(3, len(vision_tasks))) as pool:
+                    futures = {pool.submit(_vision_ocr_page, i, img): i for i, img in vision_tasks.items()}
+                    for fut in as_completed(futures):
+                        idx = futures[fut]
+                        all_text[idx] = f"--- Page {idx+1} (OCR) ---\n{fut.result()}"
+
             doc.close()
-            return jsonify({"content": "\n\n".join(all_text)})
+            return jsonify({
+                "content": "\n\n".join(t for t in all_text if t),
+                "pages": total_pages,
+                "extracted": max_pages,
+                "native": native_count,
+                "ocr": len(vision_tasks),
+            })
     except Exception as e:
         return jsonify({"content": "", "error": str(e)[:300]})
 

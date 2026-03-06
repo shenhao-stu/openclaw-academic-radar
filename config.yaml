@@ -1,0 +1,9 @@
+server:
+  port: 8081
+
+paths:
+  reports_dir: "reports"
+
+# API keys are loaded from environment variables for security.
+# Set TAVILY_API_KEY, NVIDIA_API_KEY, OHMYAPI_KEY, GLM_API_KEY
+# before running the server.

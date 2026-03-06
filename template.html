@@ -32,7 +32,7 @@
         .fade-in { animation: fadeIn 0.35s ease-out forwards; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+</style>
 </head>
 <body class="antialiased min-h-screen pb-12 transition-colors duration-200 bg-[#F9F9F9] dark:bg-[#111111] text-gray-900 dark:text-gray-100">
 
@@ -113,7 +113,7 @@
                     </div>
                 </div>
             </div>
-
+            
             <!-- Row 2: Result count + Filter + Bookmarks -->
             <div class="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-gray-200 dark:border-[#333]">
                 <span id="result-count" class="text-[13px] text-gray-400 dark:text-gray-500">共 0 篇论文</span>
@@ -182,7 +182,7 @@
                     </div>
                 </div>
             </div>
-
+            
             <!-- Chat Input -->
             <div class="p-4 bg-white dark:bg-[#1e1e1e] border-t border-gray-100 dark:border-[#333]">
                 <div class="max-w-4xl mx-auto">
@@ -191,6 +191,7 @@
                         <span class="text-[11px] text-[#4f46e5] font-medium">Web Search Active</span>
                     </div>
                     <div class="relative bg-white dark:bg-[#252525] rounded-xl border border-gray-200 dark:border-[#333] shadow-sm focus-within:ring-1 focus-within:ring-gray-300 dark:focus-within:ring-gray-600 transition-all">
+                        <div id="attach-chips-bar" class="hidden flex-wrap gap-1.5 px-3 pt-2.5 pb-0"></div>
                         <textarea id="chatInput" rows="1" class="w-full bg-transparent text-[14px] text-gray-900 dark:text-gray-100 focus:outline-none resize-none px-4 pt-3 pb-12 placeholder-gray-400 dark:placeholder-gray-500 leading-relaxed" placeholder="向 AI 提问关于这篇论文的细节..." oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateTokenCounter();" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
                         <div class="absolute bottom-2 left-3 right-2 flex items-center gap-1">
                             <button id="web-search-btn" onclick="toggleWebSearch()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Web Search"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="1.8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="1.8"/></svg></button>
@@ -198,6 +199,39 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                                 <input type="file" id="file-attach" class="hidden" accept=".txt,.md,.tex,.pdf,.png,.jpg,.jpeg,.gif,.webp" onchange="handleFileAttach(event)">
                             </label>
+                            <div class="relative" id="vision-config-container">
+                                <button onclick="toggleVisionConfig(event)" id="vision-config-btn" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all relative" title="OCR / Vision Model">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    <span id="vision-status-dot" class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-[#252525]"></span>
+                                </button>
+                                <div id="vision-config-popup" class="hidden absolute bottom-full right-0 mb-2 w-72 z-[120] bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] rounded-xl shadow-xl overflow-hidden origin-bottom-right">
+                                    <div class="px-3.5 py-2.5 border-b border-gray-100 dark:border-[#2c2c2c] flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                            <svg class="w-3.5 h-3.5 text-[#4f46e5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span class="text-[12px] font-semibold text-gray-700 dark:text-gray-200">Vision / OCR</span>
+                                    </div>
+                                        <span id="vision-conn-status" class="text-[10px] font-medium text-gray-400"></span>
+                                                </div>
+                                    <div class="p-3.5 space-y-2.5">
+                                        <div>
+                                            <label class="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Base URL</label>
+                                            <input type="text" id="vision-url-input" placeholder="http://localhost:30000/v1" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[12px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] font-mono placeholder-gray-400">
+                                            </div>
+                                        <div>
+                                            <label class="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Model Name</label>
+                                            <input type="text" id="vision-model-input" placeholder="Qwen/Qwen3.5-9B" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[12px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] font-mono placeholder-gray-400">
+                                            </div>
+                                        </div>
+                                    <div class="px-3.5 py-2 bg-gray-50/50 dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-[#2c2c2c] flex items-center gap-2">
+                                        <button onclick="testVisionConnection()" id="vision-test-btn" class="px-2.5 py-1 text-[11px] font-medium text-[#4f46e5] hover:bg-[#4f46e5]/10 rounded-md transition-colors flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                            Test
+                                        </button>
+                                        <span id="vision-test-result" class="text-[10px] flex-1 truncate"></span>
+                                        <button onclick="saveVisionConfig()" class="px-3 py-1 bg-gray-900 dark:bg-white text-white dark:text-black text-[11px] font-semibold rounded-md hover:opacity-80 transition-colors">Save</button>
+                                            </div>
+                                            </div>
+                                        </div>
                             <span class="w-px h-5 bg-gray-200 dark:bg-[#333] mx-0.5"></span>
                             <button onclick="clearContext()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all relative" title="Clear Context"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" stroke-width="1.8"/><path d="M3 3v5h5" stroke-width="1.8"/></svg><span id="context-indicator" class="hidden absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full"></span></button>
                             <button onclick="clearInput()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Clear Input"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 20H7L3 16a1 1 0 010-1.41l9.59-9.59a2 2 0 012.82 0L20 9.59A2 2 0 0120 12.41L13.41 19" stroke-width="1.8"/><line x1="6" y1="14" x2="10" y2="18" stroke-width="1.8"/></svg></button>
@@ -214,8 +248,8 @@
                                         <div class="flex items-center justify-between">
                                             <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">选择模型</span>
                                             <span class="text-[10px] text-[#4f46e5] font-medium" id="available-models-count">2 可用</span>
-                                        </div>
-                                    </div>
+                                            </div>
+                                            </div>
                                     <div class="max-h-60 overflow-y-auto py-1" id="model-dropdown-list">
                                         <div onclick="selectModel('gpt-5.4',event)" class="model-row flex items-center justify-between px-3 py-2 text-[13px] cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-[#252525] mx-1 rounded-lg" data-model="gpt-5.4">
                                             <div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white flex items-center gap-2">gpt-5.4 <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">Default</span></div><div class="text-[11px] text-gray-400 mt-0.5">ohmyapi</div></div>
@@ -257,7 +291,7 @@
                         <button onclick="setTheme('light')" id="theme-light-btn" class="flex-1 px-4 py-2 rounded-lg border text-[13px] font-medium transition-all bg-gray-50 dark:bg-[#252525] border-gray-200 dark:border-[#333] text-gray-700 dark:text-gray-300 hover:border-[#4f46e5]">☀️ Light</button>
                         <button onclick="setTheme('dark')" id="theme-dark-btn" class="flex-1 px-4 py-2 rounded-lg border text-[13px] font-medium transition-all bg-gray-50 dark:bg-[#252525] border-gray-200 dark:border-[#333] text-gray-700 dark:text-gray-300 hover:border-[#4f46e5]">🌙 Dark</button>
                         <button onclick="setTheme('auto')" id="theme-auto-btn" class="flex-1 px-4 py-2 rounded-lg border text-[13px] font-medium transition-all bg-gray-50 dark:bg-[#252525] border-gray-200 dark:border-[#333] text-gray-700 dark:text-gray-300 hover:border-[#4f46e5]">🖥️ System</button>
-                    </div>
+                </div>
                 </div>
                 <div>
                     <h4 class="text-[13px] font-bold text-gray-700 dark:text-gray-300 mb-3">Models</h4>
@@ -267,11 +301,11 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div><label class="block text-[11px] font-medium text-gray-500 mb-1">Model ID</label><input type="text" id="setting-model-custom" placeholder="e.g. gpt-5.4" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] font-mono"></div>
                             <div><label class="block text-[11px] font-medium text-gray-500 mb-1">Provider</label><input type="text" id="setting-provider" placeholder="e.g. OpenAI" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#4f46e5]"></div>
-                        </div>
+                </div>
                         <div><label class="block text-[11px] font-medium text-gray-500 mb-1">Base URL <span class="text-gray-400 font-normal">(without /chat/completions)</span></label><input type="text" id="setting-url" placeholder="https://api.openai.com/v1" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] font-mono"></div>
                         <div><label class="block text-[11px] font-medium text-gray-500 mb-1">API Key</label><input type="password" id="setting-key" placeholder="sk-..." class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-white text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] font-mono"></div>
-                    </div>
                 </div>
+            </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-[#333] flex items-center gap-3">
                 <button onclick="testConnection()" id="test-conn-btn" class="px-4 py-2 text-[13px] font-medium text-[#4f46e5] hover:bg-[#4f46e5]/10 rounded-lg transition-colors flex items-center gap-1.5">
@@ -405,42 +439,106 @@
 
         function appendChatBubble(t,u){var c=document.getElementById('chatContainer'),d=document.createElement('div');d.className=u?'interactive-bubble ml-auto w-fit max-w-[85%] bg-gray-100 dark:bg-[#252525] text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl rounded-tr-sm mb-4 text-[14px] leading-relaxed shadow-sm fade-in text-left break-words':'interactive-bubble mr-auto w-fit max-w-[95%] border border-gray-100 dark:border-[#2c2c2c] p-5 rounded-2xl rounded-tl-sm mb-4 markdown-body shadow-sm fade-in text-left break-words';if(u)d.innerText=t;else d.innerHTML=marked.parse(t);c.appendChild(d);c.scrollTo({top:c.scrollHeight,behavior:'smooth'});return d;}
 
+        var pendingAttachments=[];
+        function addAttachmentChip(id,name,icon,status){
+            var bar=document.getElementById('attach-chips-bar');bar.classList.remove('hidden');bar.classList.add('flex');
+            var chip=document.createElement('div');chip.id='chip-'+id;
+            chip.className='inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[12px] font-medium border transition-all '+(status==='loading'?'bg-[#4f46e5]/5 border-[#4f46e5]/20 text-[#4f46e5]':'bg-gray-100 dark:bg-[#333] border-gray-200 dark:border-[#444] text-gray-700 dark:text-gray-300');
+            chip.innerHTML=icon+' <span class="max-w-[120px] truncate">'+name+'</span>'+(status==='loading'?'<svg class="animate-spin w-3 h-3 ml-0.5 text-[#4f46e5]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>':'<button onclick="removeAttachment(\''+id+'\')" class="w-4 h-4 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-[#444] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors ml-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>');
+            bar.appendChild(chip);
+        }
+        function updateChipDone(id,label){
+            var chip=document.getElementById('chip-'+id);if(!chip)return;
+            chip.className='inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[12px] font-medium border transition-all bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400';
+            var spans=chip.querySelectorAll('span');var nameSpan=spans[0];
+            var spinner=chip.querySelector('svg.animate-spin');
+            if(spinner)spinner.outerHTML='<span class="text-[10px] text-emerald-500 ml-0.5">'+label+'</span><button onclick="removeAttachment(\''+id+'\')" class="w-4 h-4 flex items-center justify-center rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-400 hover:text-emerald-600 transition-colors ml-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>';
+        }
+        function updateChipError(id){
+            var chip=document.getElementById('chip-'+id);if(!chip)return;
+            chip.className='inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[12px] font-medium border transition-all bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/30 text-red-600 dark:text-red-400';
+            var spinner=chip.querySelector('svg.animate-spin');
+            if(spinner)spinner.outerHTML='<span class="text-[10px]">failed</span><button onclick="removeAttachment(\''+id+'\')" class="w-4 h-4 flex items-center justify-center rounded hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors ml-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>';
+        }
+        function removeAttachment(id){
+            pendingAttachments=pendingAttachments.filter(function(a){return a.id!==id;});
+            var chip=document.getElementById('chip-'+id);if(chip)chip.remove();
+            var bar=document.getElementById('attach-chips-bar');
+            if(bar&&!bar.children.length){bar.classList.add('hidden');bar.classList.remove('flex');}
+            updateTokenCounter();
+        }
+        window.removeAttachment=removeAttachment;
+
+        function makeCollapsibleCard(title,summary,fullContent){
+            var preview=fullContent.substring(0,200).replace(/\n/g,' ').trim();
+            var id='collapse_'+Date.now();
+            return '<div class="border border-gray-100 dark:border-[#2c2c2c] rounded-xl overflow-hidden">'
+                +'<div class="px-4 py-2.5 bg-gray-50/50 dark:bg-[#1a1a1a] flex items-center gap-2 cursor-pointer" onclick="var b=document.getElementById(\''+id+'\');b.classList.toggle(\'hidden\');this.querySelector(\'.collapse-arrow\').classList.toggle(\'rotate-90\')">'
+                +'<svg class="w-3.5 h-3.5 text-gray-400 transition-transform collapse-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+                +'<span class="text-[13px] font-semibold text-gray-700 dark:text-gray-200">'+title+'</span>'
+                +'<span class="text-[10px] text-gray-400 ml-auto">'+summary+'</span>'
+                +'</div>'
+                +'<div class="px-4 py-1.5 border-t border-gray-100 dark:border-[#2c2c2c]"><p class="text-[12px] text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">'+preview+'…</p></div>'
+                +'<div id="'+id+'" class="hidden px-4 py-3 border-t border-gray-100 dark:border-[#2c2c2c] max-h-[300px] overflow-y-auto"><div class="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">'+fullContent.substring(0,4000)+(fullContent.length>4000?'\n\n…（内容已截断）':'')+'</div></div>'
+                +'</div>';
+        }
+
         function handleFileAttach(e){
             var f=e.target.files[0];if(!f)return;
             var ext=f.name.split('.').pop().toLowerCase();
-            var input=document.getElementById('chatInput');
+            var attachId='att_'+Date.now();
+
             if(['png','jpg','jpeg','gif','webp'].indexOf(ext)!==-1){
+                addAttachmentChip(attachId,f.name,'📷','loading');
                 var reader=new FileReader();
                 reader.onload=function(ev){
                     var dataUrl=ev.target.result;
-                    appendChatBubble('📎 '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
-                    var imgDiv=document.createElement('div');imgDiv.className='interactive-bubble ml-auto w-fit max-w-[60%] mb-4 fade-in';
-                    imgDiv.innerHTML='<img src="'+dataUrl+'" class="rounded-xl max-h-64 border border-gray-200 dark:border-[#333]" alt="'+f.name+'">';
-                    document.getElementById('chatContainer').appendChild(imgDiv);
                     var b64=dataUrl.split(',')[1]||'';
-                    var lb=appendChatBubble('<div class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-[#4f46e5]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span class="text-[13px] text-gray-500">Qwen3.5 识别中...</span></div>',false);
-                    fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,prompt:'请详细描述这张图片的内容。如果包含文字、代码或公式，请完整提取出来。用中文回答。'})}).then(function(r){return r.json();}).then(function(d){
-                        if(d.content){lb.innerHTML=marked.parse(d.content);input.value+=(input.value?'\n\n':'')+'[Image OCR result for '+f.name+']\n'+d.content;}
-                        else{lb.innerHTML='<span class="text-[12px] text-amber-500">Vision model unavailable: '+(d.error||'unknown')+'</span>';input.value+=(input.value?'\n\n':'')+'[Image attached: '+f.name+']';}
-                        input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
-                    }).catch(function(err){lb.innerHTML='<span class="text-[12px] text-red-500">Vision request failed</span>';});
+                    var imgDiv=document.createElement('div');imgDiv.className='interactive-bubble ml-auto w-fit max-w-[50%] mb-3 fade-in';
+                    imgDiv.innerHTML='<img src="'+dataUrl+'" class="rounded-xl max-h-48 border border-gray-200 dark:border-[#333]" alt="'+f.name+'"><div class="text-[11px] text-gray-400 mt-1 text-right">'+f.name+' · '+Math.round(f.size/1024)+'KB</div>';
+                    document.getElementById('chatContainer').appendChild(imgDiv);
+                    document.getElementById('chatContainer').scrollTo({top:99999,behavior:'smooth'});
+                    var vc=getVisionConfig();
+                    fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,prompt:'请详细描述这张图片的内容。如果包含文字、代码或公式，请完整提取出来。用中文回答。',vision_url:vc.vision_url,vision_model:vc.vision_model})}).then(function(r){return r.json();}).then(function(d){
+                        if(d.content){
+                            pendingAttachments.push({id:attachId,name:f.name,content:'[Image: '+f.name+']\n'+d.content});
+                            updateChipDone(attachId,'OCR ✓');
+                            var cb=appendChatBubble('',false);
+                            cb.innerHTML=makeCollapsibleCard('🖼️ '+f.name,'Vision OCR',d.content);
+                        }else{
+                            pendingAttachments.push({id:attachId,name:f.name,content:'[Image attached: '+f.name+']'});
+                            updateChipError(attachId);
+                        }
+                        updateTokenCounter();
+                    }).catch(function(){updateChipError(attachId);});
                 };
                 reader.readAsDataURL(f);
             } else if(ext==='pdf'){
-                appendChatBubble('📎 PDF: '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
-                var lb=appendChatBubble('<div class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-[#4f46e5]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span class="text-[13px] text-gray-500">PDF 解析中 (rendering pages → Qwen3.5)...</span></div>',false);
+                addAttachmentChip(attachId,f.name,'📄','loading');
                 var formData=new FormData();formData.append('file',f);
+                var vc=getVisionConfig();if(vc.vision_url)formData.append('vision_url',vc.vision_url);if(vc.vision_model)formData.append('vision_model',vc.vision_model);
                 fetch('/api/parse-pdf',{method:'POST',body:formData}).then(function(r){return r.json();}).then(function(d){
-                    if(d.content){lb.innerHTML=marked.parse('**PDF 内容提取：**\n\n'+d.content.substring(0,3000)+(d.content.length>3000?'\n\n*...（已截断）*':''));input.value+=(input.value?'\n\n':'')+'[PDF content: '+f.name+']\n'+d.content.substring(0,6000);}
-                    else{lb.innerHTML='<span class="text-[12px] text-amber-500">PDF解析失败: '+(d.error||'unknown')+'。请手动粘贴文本或提供链接。</span>';}
-                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
-                }).catch(function(err){lb.innerHTML='<span class="text-[12px] text-red-500">PDF parse failed</span>';});
+                    if(d.content){
+                        var pages=d.pages||'?',native=d.native||0,ocr=d.ocr||0;
+                        var meta=pages+' pages · '+native+' text';if(ocr>0)meta+=' · '+ocr+' OCR';
+                        pendingAttachments.push({id:attachId,name:f.name,content:'[PDF: '+f.name+']\n'+d.content});
+                        updateChipDone(attachId,meta);
+                        var cb=appendChatBubble('',false);
+                        cb.innerHTML=makeCollapsibleCard('📄 '+f.name,meta,d.content);
+                    }else{
+                        updateChipError(attachId);
+                        appendChatBubble('<span class="text-[12px] text-amber-500">PDF 解析失败: '+(d.error||'unknown')+'</span>',false);
+                    }
+                    updateTokenCounter();
+                }).catch(function(){updateChipError(attachId);});
             } else {
+                addAttachmentChip(attachId,f.name,'📝','loading');
                 var reader=new FileReader();
                 reader.onload=function(ev){
-                    var text=ev.target.result||'';
-                    input.value+=(input.value?'\n\n':'')+'[Attached: '+f.name+']\n'+text.substring(0,8000);
-                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                    var text=(ev.target.result||'').substring(0,8000);
+                    pendingAttachments.push({id:attachId,name:f.name,content:'[File: '+f.name+']\n'+text});
+                    updateChipDone(attachId,Math.round(text.length/1000)+'K chars');
+                    updateTokenCounter();
                 };
                 reader.readAsText(f);
             }
@@ -448,7 +546,10 @@
         }
         window.handleFileAttach=handleFileAttach;
 
-        async function sendChatMessage(){var input=document.getElementById('chatInput'),msg=input.value.trim();if(!msg)return;if(!document.getElementById('setupState').classList.contains('hidden')){document.getElementById('setupState').classList.add('hidden');chatCtx=[];}input.value='';input.style.height='';updateTokenCounter();appendChatBubble(msg,true);chatCtx.push({role:'user',content:msg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm,web_search:webSearch})});var d=await r.json();lb.innerHTML=marked.parse(d.content);chatCtx.push({role:'assistant',content:d.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
+        async function sendChatMessage(){var input=document.getElementById('chatInput'),msg=input.value.trim();if(!msg&&!pendingAttachments.length)return;if(!document.getElementById('setupState').classList.contains('hidden')){document.getElementById('setupState').classList.add('hidden');chatCtx=[];}input.value='';input.style.height='';
+            var fullMsg=msg;
+            if(pendingAttachments.length){var attParts=pendingAttachments.map(function(a){return a.content;}).join('\n\n');fullMsg=attParts+(msg?'\n\n'+msg:'');pendingAttachments=[];var bar=document.getElementById('attach-chips-bar');if(bar){bar.innerHTML='';bar.classList.add('hidden');bar.classList.remove('flex');}}
+            updateTokenCounter();appendChatBubble(msg||'(附件内容已发送)',true);chatCtx.push({role:'user',content:fullMsg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm,web_search:webSearch})});var d=await r.json();lb.innerHTML=marked.parse(d.content);chatCtx.push({role:'assistant',content:d.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
         window.sendChatMessage=sendChatMessage;
 
         // ─── Model ───
@@ -464,15 +565,26 @@
         var webSearch=false;
         function toggleWebSearch(){webSearch=!webSearch;var b=document.getElementById('web-search-btn'),ind=document.getElementById('web-search-indicator');if(webSearch){b.classList.add('text-[#4f46e5]','bg-[#4f46e5]/10');b.classList.remove('text-gray-400');ind.classList.remove('hidden');}else{b.classList.remove('text-[#4f46e5]','bg-[#4f46e5]/10');b.classList.add('text-gray-400');ind.classList.add('hidden');}}
         window.toggleWebSearch=toggleWebSearch;
-        function clearContext(){chatCtx=[];document.getElementById('chatContainer').querySelectorAll('.interactive-bubble').forEach(function(el){el.remove();});document.getElementById('setupState').classList.remove('hidden');document.getElementById('initialAnalysisWrap').classList.add('hidden');updateContextIndicator();}
+        function clearContext(){chatCtx=[];pendingAttachments=[];document.getElementById('chatContainer').querySelectorAll('.interactive-bubble').forEach(function(el){el.remove();});document.getElementById('setupState').classList.remove('hidden');document.getElementById('initialAnalysisWrap').classList.add('hidden');var bar=document.getElementById('attach-chips-bar');if(bar){bar.innerHTML='';bar.classList.add('hidden');bar.classList.remove('flex');}updateContextIndicator();}
         window.clearContext=clearContext;
         function clearInput(){var i=document.getElementById('chatInput');if(i){i.value='';i.style.height='';updateTokenCounter();}}
         window.clearInput=clearInput;
         function updateContextIndicator(){var ind=document.getElementById('context-indicator');if(ind){if(chatCtx&&chatCtx.length>0)ind.classList.remove('hidden');else ind.classList.add('hidden');}}
         var MAX_TOK=8192;
-        function updateTokenCounter(){var i=document.getElementById('chatInput'),c=document.getElementById('token-counter');if(!i||!c)return;var n=Math.min(Math.floor((i.value||'').length*1.3),MAX_TOK),r=n/MAX_TOK;c.className='text-[11px] font-mono mr-1.5 '+(r>0.95?'text-red-500':r>0.8?'text-amber-500':'text-gray-400');c.textContent=n.toLocaleString()+' / '+MAX_TOK.toLocaleString();}
+        function updateTokenCounter(){var i=document.getElementById('chatInput'),c=document.getElementById('token-counter');if(!i||!c)return;var textLen=(i.value||'').length;var attLen=pendingAttachments.reduce(function(s,a){return s+(a.content||'').length;},0);var n=Math.min(Math.floor((textLen+attLen)*1.3),MAX_TOK),r=n/MAX_TOK;c.className='text-[11px] font-mono mr-1.5 '+(r>0.95?'text-red-500':r>0.8?'text-amber-500':'text-gray-400');c.textContent=n.toLocaleString()+' / '+MAX_TOK.toLocaleString()+(pendingAttachments.length?' +'+pendingAttachments.length:'');}
         window.updateTokenCounter=updateTokenCounter;
         document.addEventListener('keydown',function(e){if(e.ctrlKey&&e.shiftKey&&e.key==='L'){e.preventDefault();clearContext();}else if(e.ctrlKey&&e.key==='l'){e.preventDefault();clearInput();}});
+
+        // ─── Vision Config ───
+        function toggleVisionConfig(e){e.stopPropagation();var p=document.getElementById('vision-config-popup');if(p.classList.contains('hidden')){p.classList.remove('hidden');document.getElementById('vision-url-input').value=localStorage.getItem('vision_url')||'http://localhost:30000/v1';document.getElementById('vision-model-input').value=localStorage.getItem('vision_model')||'';document.getElementById('vision-test-result').textContent='';document.getElementById('vision-conn-status').textContent='';}else{p.classList.add('hidden');}}
+        window.toggleVisionConfig=toggleVisionConfig;
+        document.addEventListener('click',function(e){var p=document.getElementById('vision-config-popup');if(p&&!p.classList.contains('hidden')&&!e.target.closest('#vision-config-container'))p.classList.add('hidden');});
+        function saveVisionConfig(){var url=document.getElementById('vision-url-input').value.trim(),model=document.getElementById('vision-model-input').value.trim();if(url)localStorage.setItem('vision_url',url);else localStorage.removeItem('vision_url');if(model)localStorage.setItem('vision_model',model);else localStorage.removeItem('vision_model');updateVisionStatusDot();document.getElementById('vision-config-popup').classList.add('hidden');}
+        window.saveVisionConfig=saveVisionConfig;
+        function updateVisionStatusDot(){var dot=document.getElementById('vision-status-dot');if(!dot)return;var url=localStorage.getItem('vision_url');if(url&&url!=='http://localhost:30000/v1'){dot.className='absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#4f46e5] border border-white dark:border-[#252525]';}else if(url){dot.className='absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-[#252525]';}else{dot.className='absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-[#252525]';}}
+        async function testVisionConnection(){var btn=document.getElementById('vision-test-btn'),res=document.getElementById('vision-test-result');var url=document.getElementById('vision-url-input').value.trim()||'http://localhost:30000/v1';var model=document.getElementById('vision-model-input').value.trim();btn.disabled=true;btn.textContent='Testing...';res.textContent='';res.className='text-[10px] flex-1 truncate';try{var r=await fetch('/api/vision-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vision_url:url,vision_model:model})});var d=await r.json();if(d.ok){res.textContent='✓ '+d.model;res.className='text-[10px] flex-1 truncate text-emerald-600';document.getElementById('vision-conn-status').innerHTML='<span class="text-emerald-500">● Online</span>';}else{res.textContent='✗ '+(d.error||'Failed');res.className='text-[10px] flex-1 truncate text-red-500';document.getElementById('vision-conn-status').innerHTML='<span class="text-red-500">● Offline</span>';}}catch(e){res.textContent='✗ Network error';res.className='text-[10px] flex-1 truncate text-red-500';}btn.disabled=false;btn.innerHTML='<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Test';}
+        window.testVisionConnection=testVisionConnection;
+        function getVisionConfig(){return {vision_url:localStorage.getItem('vision_url')||'',vision_model:localStorage.getItem('vision_model')||''};}
 
         // ─── Settings ───
         function toggleSettingsModal(){var m=document.getElementById('settingsModal'),inner=m.querySelector('.settings-inner');if(m.classList.contains('hidden')){m.classList.remove('hidden');m.classList.add('flex');setTimeout(function(){m.classList.remove('opacity-0');if(inner)inner.classList.remove('translate-y-8');},10);document.getElementById('setting-model-custom').value='';document.getElementById('setting-provider').value='';document.getElementById('setting-url').value=localStorage.getItem('llm_url')||'https://api.openai.com/v1';document.getElementById('setting-key').value=localStorage.getItem('llm_key')||'';updateThemeButtons();renderSettingsModelChips();}else{m.classList.add('opacity-0');if(inner)inner.classList.add('translate-y-8');setTimeout(function(){m.classList.add('hidden');m.classList.remove('flex');},300);}}
@@ -504,18 +616,18 @@
 
         // ─── Init ───
         window.addEventListener('DOMContentLoaded',function(){
-            updateBookmarkIcons();updateTokenCounter();updateContextIndicator();injectCustomModels();
+            updateBookmarkIcons();updateTokenCounter();updateContextIndicator();injectCustomModels();updateVisionStatusDot();
             var saved=localStorage.getItem('llm_model')||DEFAULT_MODEL;
             document.getElementById('current-model-name').innerText=saved.split('/').pop();
             var sr=document.querySelector('.model-row[data-model="'+saved+'"]');
             if(sr){sr.classList.add('bg-[#4f46e5]/5');var ck=sr.querySelector('.check-icon');if(ck){ck.classList.remove('opacity-0');ck.classList.add('opacity-100');}}
             var fb=document.querySelector('#tabs .tab-btn');
             if(fb){fb.classList.remove('border-transparent','text-gray-500');fb.classList.add('text-[#4f46e5]','border-[#4f46e5]','font-semibold');}
-            rebuildTagFilter();updateResultCount();updateModelCount();
+            rebuildTagFilter();updateResultCount();updateModelCount();updateVisionStatusDot();
             var tw=document.getElementById('tabs-wrapper');
             if(tw){new ResizeObserver(function(){recalculateTabsLayout();}).observe(tw);recalculateTabsLayout();}
         });
-    })();
-    </script>
+})();
+</script>
 </body>
 </html>

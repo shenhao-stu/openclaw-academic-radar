@@ -122,23 +122,36 @@ def api_history():
     return jsonify([{"filename": os.path.basename(f), "date": os.path.basename(f).replace("daily_brief_", "").replace(".html", "")} for f in files])
 
 
+ACADEMIC_DOMAINS = ["arxiv.org", "nips.cc", "neurips.cc", "icml.cc", "iclr.cc", "aclweb.org", "openreview.net"]
+
+
 @app.route("/api/search")
 def api_search():
     query = request.args.get("q", "")
     source = request.args.get("source", "all")
+    max_results = min(20, max(8, int(request.args.get("max_results", 8))))
+    if not TAVILY_KEY:
+        return jsonify({"error": "TAVILY_API_KEY not configured", "results": []}), 500
+    body = {
+        "api_key": TAVILY_KEY, "query": query,
+        "search_depth": "advanced", "time_range": "month", "max_results": max_results,
+    }
     if source == "academic":
-        query += " (site:arxiv.org OR site:nips.cc OR site:icml.cc OR site:iclr.cc OR site:aclweb.org)"
-    payload = json.dumps({"api_key": TAVILY_KEY, "query": query, "search_depth": "advanced", "time_range": "month", "max_results": 8}).encode("utf-8")
+        body["include_domains"] = ACADEMIC_DOMAINS
     try:
+        payload = json.dumps(body).encode("utf-8")
         req = urllib.request.Request("https://api.tavily.com/search", data=payload, headers={"Content-Type": "application/json"})
         resp = urllib.request.urlopen(req, timeout=30).read()
+        data = json.loads(resp)
+        if "detail" in data:
+            return jsonify({"error": str(data["detail"]), "results": []}), 400
         results = []
-        for r in json.loads(resp).get("results", []):
+        for r in data.get("results", []):
             tag, tag_color = _classify_link(r.get("url", ""))
             results.append({"title": r.get("title", ""), "link": r.get("url", ""), "snippet": r.get("content", "").replace("\n", " ").strip()[:300], "domain": tag, "tag_color": tag_color})
         return jsonify(results)
-    except Exception:
-        return jsonify([])
+    except Exception as e:
+        return jsonify({"error": str(e)[:200], "results": []}), 500
 
 
 @app.route("/api/web-fetch", methods=["POST"])

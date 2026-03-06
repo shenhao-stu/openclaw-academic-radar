@@ -74,11 +74,19 @@ def _classify_link(url: str) -> tuple:
         return "Web", DEFAULT_TAG_COLOR
 
 
-def search_tavily(query: str, max_results: int = 8, time_range: str = "month") -> list:
-    payload = json.dumps({
+ACADEMIC_DOMAINS = ["arxiv.org", "nips.cc", "neurips.cc", "icml.cc", "iclr.cc", "aclweb.org", "openreview.net"]
+
+
+def search_tavily(query: str, max_results: int = 8, time_range: str = "month",
+                   include_domains: list | None = None) -> list:
+    body = {
         "api_key": TAVILY_API_KEY, "query": query, "search_depth": "basic",
-        "include_images": False, "include_answer": False, "max_results": max_results, "time_range": time_range,
-    }).encode("utf-8")
+        "include_images": False, "include_answer": False,
+        "max_results": max_results, "time_range": time_range,
+    }
+    if include_domains:
+        body["include_domains"] = include_domains
+    payload = json.dumps(body).encode("utf-8")
     try:
         req = urllib.request.Request("https://api.tavily.com/search", data=payload, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -168,8 +176,7 @@ def main():
 
         hidden = "" if i == 0 else "hidden"
         papers_html += f'<div id="content-{tab_id}" class="tab-content {hidden}"><div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">'
-        query = f'{meta["query"]} (site:arxiv.org OR site:nips.cc OR site:icml.cc OR site:iclr.cc OR site:aclweb.org)'
-        results = search_tavily(query, max_results=8)
+        results = search_tavily(meta["query"], max_results=8, include_domains=ACADEMIC_DOMAINS)
         if not results:
             papers_html += '<div class="col-span-full text-[13px] text-gray-500 py-10 text-center">今日暂无收录论文</div>'
         else:

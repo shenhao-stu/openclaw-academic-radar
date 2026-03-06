@@ -7,6 +7,16 @@ import re
 import subprocess
 import urllib.request
 
+# Auto-load .env from project root if present
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+
 import yaml
 from flask import Flask, request, jsonify, send_file
 from openai import OpenAI

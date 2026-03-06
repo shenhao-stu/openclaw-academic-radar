@@ -133,7 +133,7 @@
                         </div>
                     </div>
                 </div>
-                <button id="btn-bookmarks" onclick="switchTab('bookmarks')" class="tab-btn flex items-center gap-1.5 px-3 py-1.5 text-amber-600 dark:text-amber-500 rounded-lg text-[12px] font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+                <button id="btn-bookmarks" onclick="switchTab('bookmarks')" class="tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-amber-600 dark:text-amber-500 rounded-lg text-[12px] font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                     收藏夹
                 </button>
@@ -367,24 +367,28 @@
         // ─── Filter ───
         function toggleFilterDropdown(e){e.preventDefault();e.stopPropagation();document.getElementById('filter-dropdown-menu').classList.toggle('hidden');}
         window.toggleFilterDropdown=toggleFilterDropdown;
-        function selectFilter(v,t,e){if(e)e.preventDefault();document.getElementById('search-source-filter').value=v;document.getElementById('filter-current-text').innerText=t;document.querySelectorAll('.check-icon-filter').forEach(function(el){el.classList.remove('opacity-100');el.classList.add('opacity-0');});var ck=document.getElementById('check-filter-'+v);if(ck){ck.classList.remove('opacity-0');ck.classList.add('opacity-100');}document.getElementById('filter-dropdown-menu').classList.add('hidden');var ab=document.querySelector('#tabs .tab-btn.font-semibold');if(!ab||ab.id==='btn-bookmarks')return;var tid=ab.id.replace('btn-','');if(tid.startsWith('custom_')){document.getElementById('custom-topic-input').value='';searchCustomTopic(tid);}}
+        function selectFilter(v,t,e){if(e)e.preventDefault();document.getElementById('search-source-filter').value=v;document.getElementById('filter-current-text').innerText=t;document.querySelectorAll('.check-icon-filter').forEach(function(el){el.classList.remove('opacity-100');el.classList.add('opacity-0');});var ck=document.getElementById('check-filter-'+v);if(ck){ck.classList.remove('opacity-0');ck.classList.add('opacity-100');}document.getElementById('filter-dropdown-menu').classList.add('hidden');var ab=document.querySelector('#tabs .tab-btn.font-semibold');if(!ab||ab.id==='btn-bookmarks')return;var tid=ab.id.replace('btn-','');searchCustomTopic(tid);}
         window.selectFilter=selectFilter;
         document.addEventListener('click',function(e){var d=document.getElementById('filter-dropdown-menu');if(d&&!d.classList.contains('hidden')&&!e.target.closest('#filter-dropdown-container'))d.classList.add('hidden');});
 
         // ─── Tag filter (dynamic from cards) ───
-        var currentTagFilter='';
+        var currentTagFilter='',MAX_VISIBLE_TAGS=5,overflowTags=[];
         function rebuildTagFilter(){
             var bar=document.getElementById('tag-filter-bar');if(!bar)return;
             var ac=document.querySelector('.tab-content:not(.hidden)');
             var tags=new Set();
             if(ac){ac.querySelectorAll('.paper-card').forEach(function(c){var t=c.getAttribute('data-tag');if(t)tags.add(t);});}
             var arr=Array.from(tags).sort();
-            var html='<button onclick="selectTagFilter(\'\')" class="tag-chip px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all '+(!currentTagFilter?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#444]')+'" data-tag="">全部</button>';
-            arr.forEach(function(t){html+='<button onclick="selectTagFilter(\''+t+'\')" class="tag-chip px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all '+(currentTagFilter===t?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#444]')+'" data-tag="'+t+'">'+t+'</button>';});
+            var visible=arr.slice(0,MAX_VISIBLE_TAGS);overflowTags=arr.slice(MAX_VISIBLE_TAGS);
+            var isOther=overflowTags.indexOf(currentTagFilter)!==-1;
+            var chipCls=function(active){return 'tag-chip px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all '+(active?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#444]');};
+            var html='<button onclick="selectTagFilter(\'\')" class="'+chipCls(!currentTagFilter)+'">全部</button>';
+            visible.forEach(function(t){html+='<button onclick="selectTagFilter(\''+t+'\')" class="'+chipCls(currentTagFilter===t)+'">'+t+'</button>';});
+            if(overflowTags.length){html+='<button onclick="selectTagFilter(\'__other__\')" class="'+chipCls(currentTagFilter==='__other__'||isOther)+'">其他 ('+overflowTags.length+')</button>';}
             bar.innerHTML=html;
         }
         function selectTagFilter(tag){currentTagFilter=tag;rebuildTagFilter();applyTagFilter();}
-        function applyTagFilter(){var ac=document.querySelector('.tab-content:not(.hidden)');if(!ac)return;ac.querySelectorAll('.paper-card').forEach(function(c){var t=c.getAttribute('data-tag')||'';c.style.display=!currentTagFilter||t===currentTagFilter?'':'none';});updateResultCount();}
+        function applyTagFilter(){var ac=document.querySelector('.tab-content:not(.hidden)');if(!ac)return;ac.querySelectorAll('.paper-card').forEach(function(c){var t=c.getAttribute('data-tag')||'';if(!currentTagFilter){c.style.display='';}else if(currentTagFilter==='__other__'){c.style.display=overflowTags.indexOf(t)!==-1?'':'none';}else{c.style.display=t===currentTagFilter?'':'none';}});updateResultCount();}
         window.selectTagFilter=selectTagFilter;
         window.rebuildTagFilter=rebuildTagFilter;
 

@@ -65,7 +65,6 @@ def _classify_link(url: str) -> tuple[str, str]:
 
 MODEL_PROVIDERS = {
     "gpt-5.4": {"base_url": "https://ohmyapi-2api.hf.space/v1", "env_key": "OHMYAPI_KEY"},
-    "glm-5": {"base_url": "https://open.bigmodel.cn/api/coding/paas/v4", "env_key": "GLM_API_KEY"},
 }
 
 

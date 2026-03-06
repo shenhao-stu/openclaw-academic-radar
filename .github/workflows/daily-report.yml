@@ -3,7 +3,7 @@ name: Daily Academic Radar
 on:
   schedule:
     - cron: '0 2 * * *'  # 10:00 AM Beijing time (UTC+8)
-  workflow_dispatch:       # Manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,18 +30,20 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       - name: Generate daily report
         env:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          RADAR_TOPICS: ${{ vars.RADAR_TOPICS || '' }}
         run: python daily_ai_brief.py
 
       - name: Prepare GitHub Pages output
         run: |
           mkdir -p _site
           cp reports/daily_brief_*.html _site/ 2>/dev/null || true
-          # Create index.html that redirects to latest report
           LATEST=$(ls -t reports/daily_brief_*.html 2>/dev/null | head -1)
           if [ -n "$LATEST" ]; then
             cp "$LATEST" _site/index.html
@@ -59,7 +61,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add reports/
-          git diff --staged --quiet || git commit -m "chore: update daily report $(date +%Y-%m-%d)"
+          git diff --staged --quiet || git commit -m "chore: daily report $(date +%Y-%m-%d)"
           git push origin gh-pages
 
   deploy:

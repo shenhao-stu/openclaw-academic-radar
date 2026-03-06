@@ -94,8 +94,8 @@ def fetch_sota_models() -> str:
     for m in models:
         bg = "bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-[#1e2330] dark:to-[#1a1b26]" if m["rank"] == 1 else "bg-white dark:bg-[#1e1e1e]"
         badge = '<span class="px-2 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold rounded shadow-sm">SOTA</span>' if m["rank"] == 1 else f'<span class="text-[11px] text-gray-400 font-mono">{m["score"]}</span>'
-        html += f'''<div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#333] {bg} hover:shadow-sm transition">
-            <div class="flex items-center gap-3"><span class="text-[14px] font-black {rank_colors.get(m["rank"], "text-gray-300")} w-5">#{m["rank"]}</span><div><div class="font-semibold text-[13px] text-gray-900 dark:text-white">{m["name"]}</div><div class="text-[10px] text-gray-400">{m["org"]}</div></div></div>{badge}</div>'''
+        html += f'''<a href="https://arena.ai/leaderboard" target="_blank" class="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#333] {bg} hover:shadow-md hover:border-gray-300 dark:hover:border-[#444] transition-all cursor-pointer group">
+            <div class="flex items-center gap-3"><span class="text-[14px] font-black {rank_colors.get(m["rank"], "text-gray-300")} w-5">#{m["rank"]}</span><div><div class="font-semibold text-[13px] text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">{m["name"]}</div><div class="text-[10px] text-gray-400">{m["org"]}</div></div></div>{badge}</a>'''
     html += '</div>'
     return html
 
@@ -137,8 +137,12 @@ def main():
     date_str = datetime.now().strftime("%Y-%m-%d")
     topics = parse_topics()
 
-    news_results = search_tavily("AI startup fund release OR AI new model OR Anthropic OR OpenAI", max_results=4, time_range="day")
+    news_results = search_tavily("latest AI news Anthropic OpenAI Google DeepMind 2026", max_results=4, time_range="week")
+    if not news_results:
+        news_results = search_tavily("artificial intelligence breakthrough research 2026", max_results=4, time_range="month")
     news_html = '<div class="space-y-3">'
+    if not news_results:
+        news_html += '<p class="text-[12px] text-gray-400 py-4 text-center">暂无最新资讯</p>'
     for r in news_results:
         news_html += f'<a href="{r.get("url", "")}" target="_blank" class="block p-3.5 rounded-xl border border-gray-200 dark:border-[#333] hover:bg-gray-50 dark:hover:bg-[#252525] transition-all group"><h4 class="font-semibold text-[13px] text-gray-900 dark:text-white mb-1.5 group-hover:text-indigo-600 line-clamp-2">{r.get("title", "")}</h4><p class="text-[11px] text-gray-400 line-clamp-2">{r.get("content", "")[:200]}</p></a>'
     news_html += "</div>"

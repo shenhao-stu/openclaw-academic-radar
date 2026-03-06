@@ -228,6 +228,7 @@
                                             Test
                                         </button>
                                         <span id="vision-test-result" class="text-[10px] flex-1 truncate"></span>
+                                        <button onclick="disableVision()" id="vision-disable-btn" class="px-2.5 py-1 text-[11px] font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors">Disable</button>
                                         <button onclick="saveVisionConfig()" class="px-3 py-1 bg-gray-900 dark:bg-white text-white dark:text-black text-[11px] font-semibold rounded-md hover:opacity-80 transition-colors">Save</button>
                                     </div>
                                 </div>
@@ -252,11 +253,7 @@
                                             </div>
                                     <div class="max-h-60 overflow-y-auto py-1" id="model-dropdown-list">
                                         <div onclick="selectModel('gpt-5.4',event)" class="model-row flex items-center justify-between px-3 py-2 text-[13px] cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-[#252525] mx-1 rounded-lg" data-model="gpt-5.4">
-                                            <div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white flex items-center gap-2">gpt-5.4 <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">Default</span></div><div class="text-[11px] text-gray-400 mt-0.5">ohmyapi</div></div>
-                                            <svg class="w-4 h-4 text-[#4f46e5] check-icon opacity-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                        </div>
-                                        <div onclick="selectModel('glm-5',event)" class="model-row flex items-center justify-between px-3 py-2 text-[13px] cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-[#252525] mx-1 rounded-lg" data-model="glm-5">
-                                            <div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white">glm-5</div><div class="text-[11px] text-gray-400 mt-0.5">Zhipu AI</div></div>
+                                            <div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white flex items-center gap-2">gpt-5.4 <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">Default</span></div><div class="text-[11px] text-gray-400 mt-0.5">OpenAI via ohmyapi</div></div>
                                             <svg class="w-4 h-4 text-[#4f46e5] check-icon opacity-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                                         </div>
                                         <div id="custom-models-container"></div>
@@ -484,6 +481,8 @@
                 +'</div>';
         }
 
+        function isVisionEnabled(){return !!localStorage.getItem('vision_url');}
+
         function handleFileAttach(e){
             var f=e.target.files[0];if(!f)return;
             var ext=f.name.split('.').pop().toLowerCase();
@@ -495,23 +494,23 @@
                 reader.onload=function(ev){
                     var dataUrl=ev.target.result;
                     var b64=dataUrl.split(',')[1]||'';
-                    var imgDiv=document.createElement('div');imgDiv.className='interactive-bubble ml-auto w-fit max-w-[50%] mb-3 fade-in';
-                    imgDiv.innerHTML='<img src="'+dataUrl+'" class="rounded-xl max-h-48 border border-gray-200 dark:border-[#333]" alt="'+f.name+'"><div class="text-[11px] text-gray-400 mt-1 text-right">'+f.name+' · '+Math.round(f.size/1024)+'KB</div>';
-                    document.getElementById('chatContainer').appendChild(imgDiv);
-                    document.getElementById('chatContainer').scrollTo({top:99999,behavior:'smooth'});
-                    var vc=getVisionConfig();
-                    fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,prompt:'请详细描述这张图片的内容。如果包含文字、代码或公式，请完整提取出来。用中文回答。',vision_url:vc.vision_url,vision_model:vc.vision_model})}).then(function(r){return r.json();}).then(function(d){
-                        if(d.content){
-                            pendingAttachments.push({id:attachId,name:f.name,content:'[Image: '+f.name+']\n'+d.content});
-                            updateChipDone(attachId,'OCR ✓');
-                            var cb=appendChatBubble('',false);
-                            cb.innerHTML=makeCollapsibleCard('🖼️ '+f.name,'Vision OCR',d.content);
-                        }else{
-                            pendingAttachments.push({id:attachId,name:f.name,content:'[Image attached: '+f.name+']'});
-                            updateChipError(attachId);
-                        }
+                    if(isVisionEnabled()){
+                        var vc=getVisionConfig();
+                        fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,prompt:'请详细描述这张图片的内容。如果包含文字、代码或公式，请完整提取出来。用中文回答。',vision_url:vc.vision_url,vision_model:vc.vision_model})}).then(function(r){return r.json();}).then(function(d){
+                            if(d.content){
+                                pendingAttachments.push({id:attachId,name:f.name,content:'[Image: '+f.name+']\n'+d.content});
+                                updateChipDone(attachId,'OCR ✓');
+                            }else{
+                                pendingAttachments.push({id:attachId,name:f.name,content:'[Image attached: '+f.name+']'});
+                                updateChipError(attachId);
+                            }
+                            updateTokenCounter();
+                        }).catch(function(){pendingAttachments.push({id:attachId,name:f.name,content:'[Image attached: '+f.name+']'});updateChipError(attachId);updateTokenCounter();});
+                    }else{
+                        pendingAttachments.push({id:attachId,name:f.name,content:'[Image attached: '+f.name+'] (no vision model configured)'});
+                        updateChipDone(attachId,Math.round(f.size/1024)+'KB');
                         updateTokenCounter();
-                    }).catch(function(){updateChipError(attachId);});
+                    }
                 };
                 reader.readAsDataURL(f);
             } else if(ext==='pdf'){
@@ -524,14 +523,11 @@
                         var meta=pages+' pages · '+native+' text';if(ocr>0)meta+=' · '+ocr+' OCR';
                         pendingAttachments.push({id:attachId,name:f.name,content:'[PDF: '+f.name+']\n'+d.content});
                         updateChipDone(attachId,meta);
-                        var cb=appendChatBubble('',false);
-                        cb.innerHTML=makeCollapsibleCard('📄 '+f.name,meta,d.content);
                     }else{
                         updateChipError(attachId);
-                        appendChatBubble('<span class="text-[12px] text-amber-500">PDF 解析失败: '+(d.error||'unknown')+'</span>',false);
                     }
                     updateTokenCounter();
-                }).catch(function(){updateChipError(attachId);});
+                }).catch(function(){updateChipError(attachId);updateTokenCounter();});
             } else {
                 addAttachmentChip(attachId,f.name,'📝','loading');
                 var reader=new FileReader();
@@ -560,7 +556,7 @@
         window.selectModel=selectModel;
         document.addEventListener('click',function(e){var d=document.getElementById('model-dropdown-menu');if(d&&!d.classList.contains('hidden')&&!e.target.closest('#model-dropdown-container'))d.classList.add('hidden');});
         function updateLoadingText(){var m=localStorage.getItem('llm_model')||DEFAULT_MODEL;var el=document.getElementById('loading-model-name');if(el)el.innerText=m.split('/').pop();}
-        function updateModelCount(){var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var el=document.getElementById('available-models-count');if(el)el.textContent=(2+cms.length)+' 可用';}
+        function updateModelCount(){var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var el=document.getElementById('available-models-count');if(el)el.textContent=(1+cms.length)+' 可用';}
 
         // ─── Tools ───
         var webSearch=false;
@@ -582,6 +578,8 @@
         document.addEventListener('click',function(e){var p=document.getElementById('vision-config-popup');if(p&&!p.classList.contains('hidden')&&!e.target.closest('#vision-config-container'))p.classList.add('hidden');});
         function saveVisionConfig(){var url=document.getElementById('vision-url-input').value.trim(),model=document.getElementById('vision-model-input').value.trim();if(url)localStorage.setItem('vision_url',url);else localStorage.removeItem('vision_url');if(model)localStorage.setItem('vision_model',model);else localStorage.removeItem('vision_model');updateVisionStatusDot();document.getElementById('vision-config-popup').classList.add('hidden');}
         window.saveVisionConfig=saveVisionConfig;
+        function disableVision(){localStorage.removeItem('vision_url');localStorage.removeItem('vision_model');updateVisionStatusDot();document.getElementById('vision-config-popup').classList.add('hidden');}
+        window.disableVision=disableVision;
         function updateVisionStatusDot(){var dot=document.getElementById('vision-status-dot'),btn=document.getElementById('vision-config-btn');if(!dot)return;var url=localStorage.getItem('vision_url');if(url&&url!=='http://localhost:30000/v1'){dot.className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#4f46e5] ring-2 ring-white dark:ring-[#252525]';if(btn)btn.className='w-8 h-8 flex items-center justify-center rounded-lg text-[#4f46e5] bg-[#4f46e5]/10 hover:bg-[#4f46e5]/20 transition-all relative';}else if(url){dot.className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#252525]';if(btn)btn.className='w-8 h-8 flex items-center justify-center rounded-lg text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all relative';}else{dot.className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-gray-600 ring-2 ring-white dark:ring-[#252525]';if(btn)btn.className='w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all relative';}}
         async function testVisionConnection(){var btn=document.getElementById('vision-test-btn'),res=document.getElementById('vision-test-result');var url=document.getElementById('vision-url-input').value.trim()||'http://localhost:30000/v1';var model=document.getElementById('vision-model-input').value.trim();btn.disabled=true;btn.textContent='Testing...';res.textContent='';res.className='text-[10px] flex-1 truncate';try{var r=await fetch('/api/vision-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vision_url:url,vision_model:model})});var d=await r.json();if(d.ok){res.textContent='✓ '+d.model;res.className='text-[10px] flex-1 truncate text-emerald-600';document.getElementById('vision-conn-status').innerHTML='<span class="text-emerald-500">● Online</span>';}else{res.textContent='✗ '+(d.error||'Failed');res.className='text-[10px] flex-1 truncate text-red-500';document.getElementById('vision-conn-status').innerHTML='<span class="text-red-500">● Offline</span>';}}catch(e){res.textContent='✗ Network error';res.className='text-[10px] flex-1 truncate text-red-500';}btn.disabled=false;btn.innerHTML='<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Test';}
         window.testVisionConnection=testVisionConnection;
@@ -591,7 +589,7 @@
         function toggleSettingsModal(){var m=document.getElementById('settingsModal'),inner=m.querySelector('.settings-inner');if(m.classList.contains('hidden')){m.classList.remove('hidden');m.classList.add('flex');setTimeout(function(){m.classList.remove('opacity-0');if(inner)inner.classList.remove('translate-y-8');},10);document.getElementById('setting-model-custom').value='';document.getElementById('setting-provider').value='';document.getElementById('setting-url').value=localStorage.getItem('llm_url')||'https://api.openai.com/v1';document.getElementById('setting-key').value=localStorage.getItem('llm_key')||'';updateThemeButtons();renderSettingsModelChips();}else{m.classList.add('opacity-0');if(inner)inner.classList.add('translate-y-8');setTimeout(function(){m.classList.add('hidden');m.classList.remove('flex');},300);}}
         window.toggleSettingsModal=toggleSettingsModal;
 
-        function renderSettingsModelChips(){var c=document.getElementById('settings-model-chips');if(!c)return;var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var chips=[{id:'gpt-5.4',label:'gpt-5.4',rm:false},{id:'glm-5',label:'glm-5',rm:false}];cms.forEach(function(m){chips.push({id:m.id,label:m.id.split('/').pop(),rm:true});});var cur=localStorage.getItem('llm_model')||DEFAULT_MODEL;c.innerHTML=chips.map(function(ch){var a=ch.id===cur;return '<span class="px-3 py-1 rounded-full text-[12px] font-medium cursor-pointer transition-all '+(a?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#444]')+'" onclick="selectModel(\''+ch.id+'\',event)">'+ch.label+(ch.rm?' <span onclick="event.stopPropagation();deleteCustomModel(\''+ch.id+'\',event)" class="ml-1 opacity-60 hover:opacity-100">&times;</span>':'')+'</span>';}).join('');}
+        function renderSettingsModelChips(){var c=document.getElementById('settings-model-chips');if(!c)return;var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var chips=[{id:'gpt-5.4',label:'gpt-5.4',rm:false}];cms.forEach(function(m){chips.push({id:m.id,label:m.id.split('/').pop(),rm:true});});var cur=localStorage.getItem('llm_model')||DEFAULT_MODEL;c.innerHTML=chips.map(function(ch){var a=ch.id===cur;return '<span class="px-3 py-1 rounded-full text-[12px] font-medium cursor-pointer transition-all '+(a?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#444]')+'" onclick="selectModel(\''+ch.id+'\',event)">'+ch.label+(ch.rm?' <span onclick="event.stopPropagation();deleteCustomModel(\''+ch.id+'\',event)" class="ml-1 opacity-60 hover:opacity-100">&times;</span>':'')+'</span>';}).join('');}
 
         function saveSettings(){var mid=document.getElementById('setting-model-custom').value.trim(),prov=document.getElementById('setting-provider').value.trim()||'Custom',url=document.getElementById('setting-url').value.trim(),key=document.getElementById('setting-key').value.trim();if(!mid){alert('Please enter a Model ID');return;}var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var idx=cms.findIndex(function(m){return m.id===mid;});if(idx>-1)cms[idx]={id:mid,provider:prov,url:url,key:key};else cms.push({id:mid,provider:prov,url:url,key:key});localStorage.setItem('custom_models',JSON.stringify(cms));localStorage.setItem('llm_model',mid);localStorage.setItem('llm_url',url);localStorage.setItem('llm_key',key);injectCustomModels();selectModel(mid,null);toggleSettingsModal();}
         window.saveSettings=saveSettings;
@@ -613,12 +611,14 @@
         function deleteCustomModel(id,e){if(e){e.stopPropagation();e.preventDefault();}var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');cms=cms.filter(function(m){return m.id!==id;});localStorage.setItem('custom_models',JSON.stringify(cms));if(localStorage.getItem('llm_model')===id)selectModel(DEFAULT_MODEL,null);injectCustomModels();renderSettingsModelChips();}
         window.deleteCustomModel=deleteCustomModel;
 
-        function injectCustomModels(){var cms=JSON.parse(localStorage.getItem('custom_models')||'[]'),c=document.getElementById('custom-models-container');if(!c)return;c.innerHTML='';if(cms.length){c.innerHTML='<div class="border-t border-gray-100 dark:border-[#2c2c2c] my-1 mx-1"></div>';}var cur=localStorage.getItem('llm_model');cms.forEach(function(m){var sel=cur===m.id;var d=document.createElement('div');d.className='model-row flex items-center justify-between px-3 py-2 text-[13px] cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-[#252525] mx-1 rounded-lg '+(sel?'bg-[#4f46e5]/5':'');d.setAttribute('data-model',m.id);d.onclick=function(e){selectModel(m.id,e);};d.innerHTML='<div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white truncate">'+m.id.split('/').pop()+'</div><div class="text-[11px] text-gray-400 mt-0.5">'+(m.provider||'Custom')+'</div></div><div class="flex items-center gap-1"><button onclick="deleteCustomModel(\''+m.id+'\',event)" class="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>'+(sel?'<svg class="w-4 h-4 text-[#4f46e5] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>':'<div class="w-4"></div>')+'</div>';c.appendChild(d);});updateModelCount();}
+        function injectCustomModels(){var cms=JSON.parse(localStorage.getItem('custom_models')||'[]'),c=document.getElementById('custom-models-container');if(!c)return;c.innerHTML='';if(cms.length){c.innerHTML='<div class="border-t border-gray-100 dark:border-[#2c2c2c] my-1 mx-1"></div>';}var cur=localStorage.getItem('llm_model');cms.forEach(function(m){var sel=cur===m.id;var d=document.createElement('div');d.className='group model-row flex items-center justify-between px-3 py-2 text-[13px] cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-[#252525] mx-1 rounded-lg '+(sel?'bg-[#4f46e5]/5':'');d.setAttribute('data-model',m.id);d.onclick=function(e){selectModel(m.id,e);};d.innerHTML='<div class="flex-1 min-w-0"><div class="font-medium text-gray-900 dark:text-white truncate">'+m.id.split('/').pop()+'</div><div class="text-[11px] text-gray-400 mt-0.5">'+(m.provider||'Custom')+'</div></div><div class="flex items-center gap-1.5"><button onclick="deleteCustomModel(\''+m.id+'\',event)" class="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all" title="Delete model"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>'+(sel?'<svg class="w-4 h-4 text-[#4f46e5] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>':'<div class="w-4"></div>')+'</div>';c.appendChild(d);});updateModelCount();}
 
         // ─── Init ───
         window.addEventListener('DOMContentLoaded',function(){
             updateBookmarkIcons();updateTokenCounter();updateContextIndicator();injectCustomModels();updateVisionStatusDot();
             var saved=localStorage.getItem('llm_model')||DEFAULT_MODEL;
+            var builtIn=['gpt-5.4'];var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var allKnown=builtIn.concat(cms.map(function(m){return m.id;}));
+            if(allKnown.indexOf(saved)===-1){saved=DEFAULT_MODEL;localStorage.setItem('llm_model',DEFAULT_MODEL);localStorage.removeItem('llm_url');localStorage.removeItem('llm_key');}
             document.getElementById('current-model-name').innerText=saved.split('/').pop();
             var sr=document.querySelector('.model-row[data-model="'+saved+'"]');
             if(sr){sr.classList.add('bg-[#4f46e5]/5');var ck=sr.querySelector('.check-icon');if(ck){ck.classList.remove('opacity-0');ck.classList.add('opacity-100');}}

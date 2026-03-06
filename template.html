@@ -115,8 +115,9 @@
             </div>
 
             <!-- Row 2: Result count + Filter + Bookmarks -->
-            <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-[#333]">
+            <div class="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-gray-200 dark:border-[#333]">
                 <span id="result-count" class="text-[13px] text-gray-400 dark:text-gray-500">共 0 篇论文</span>
+                <div class="flex gap-1.5 flex-wrap" id="tag-filter-bar"></div>
                 <div class="flex-1"></div>
                 <div class="relative flex-shrink-0" id="filter-dropdown-container">
                     <input type="hidden" id="search-source-filter" value="academic">
@@ -193,12 +194,13 @@
                         <textarea id="chatInput" rows="1" class="w-full bg-transparent text-[14px] text-gray-900 dark:text-gray-100 focus:outline-none resize-none px-4 pt-3 pb-12 placeholder-gray-400 dark:placeholder-gray-500 leading-relaxed" placeholder="向 AI 提问关于这篇论文的细节..." oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';updateTokenCounter();" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
                         <div class="absolute bottom-2 left-3 right-2 flex items-center gap-1">
                             <button id="web-search-btn" onclick="toggleWebSearch()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Web Search"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="1.8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="1.8"/></svg></button>
-                            <button onclick="clearContext()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all relative" title="Clear Context"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" stroke-width="1.8"/><path d="M3 3v5h5" stroke-width="1.8"/></svg><span id="context-indicator" class="hidden absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full"></span></button>
-                            <button onclick="clearInput()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Clear Input"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 20H7L3 16a1 1 0 010-1.41l9.59-9.59a2 2 0 012.82 0L20 9.59A2 2 0 0120 12.41L13.41 19" stroke-width="1.8"/><line x1="6" y1="14" x2="10" y2="18" stroke-width="1.8"/></svg></button>
-                            <label class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all cursor-pointer" title="Attach text file">
+                            <label class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all cursor-pointer" title="Attach file (image/PDF/text)">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                                 <input type="file" id="file-attach" class="hidden" accept=".txt,.md,.tex,.pdf,.png,.jpg,.jpeg,.gif,.webp" onchange="handleFileAttach(event)">
                             </label>
+                            <span class="w-px h-5 bg-gray-200 dark:bg-[#333] mx-0.5"></span>
+                            <button onclick="clearContext()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all relative" title="Clear Context"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" stroke-width="1.8"/><path d="M3 3v5h5" stroke-width="1.8"/></svg><span id="context-indicator" class="hidden absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full"></span></button>
+                            <button onclick="clearInput()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Clear Input"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 20H7L3 16a1 1 0 010-1.41l9.59-9.59a2 2 0 012.82 0L20 9.59A2 2 0 0120 12.41L13.41 19" stroke-width="1.8"/><line x1="6" y1="14" x2="10" y2="18" stroke-width="1.8"/></svg></button>
                             <div class="flex-1"></div>
                             <div id="token-counter" class="text-[11px] text-gray-400 font-mono mr-1.5">0 / 8,192</div>
                             <div class="relative" id="model-dropdown-container">
@@ -305,21 +307,21 @@
             var btns=tc.querySelectorAll('.tab-btn');
             btns.forEach(function(b,i){b.classList.remove('hidden');var bw=b.offsetWidth+10;var rs=i<btns.length-1?100:0;if(uw+bw+rs<=cw){uw+=bw;}else{b.classList.add('hidden');ht.push({id:b.id.replace('btn-',''),name:b.textContent.trim(),isActive:activeTabId===b.id.replace('btn-',''),isCustom:b.hasAttribute('data-custom')});}});
             if(ht.length>0){mc.classList.remove('hidden');mn.textContent=ht.length;
-                ml.innerHTML=ht.map(function(t){return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] cursor-pointer group '+(t.isActive?'bg-[#4f46e5]/5':'')+'" onclick="switchTab(\''+t.id+'\');toggleMoreTabs();"><span class="text-[13px] font-medium '+(t.isActive?'text-[#4f46e5]':'text-gray-700 dark:text-gray-300')+'">'+t.name+'</span><div class="flex items-center gap-1">'+(t.isActive?'<svg class="w-3.5 h-3.5 text-[#4f46e5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>':'')+'<button onclick="event.stopPropagation();removeCustomTab(\''+t.id+'\')" class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div></div>';}).join('');
+                ml.innerHTML=ht.map(function(t){var delBtn=t.isCustom?'<button onclick="event.stopPropagation();removeCustomTab(\''+t.id+'\')" class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>':'';return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] cursor-pointer group '+(t.isActive?'bg-[#4f46e5]/5':'')+'" onclick="switchTab(\''+t.id+'\');toggleMoreTabs();"><span class="text-[13px] font-medium '+(t.isActive?'text-[#4f46e5]':'text-gray-700 dark:text-gray-300')+'">'+t.name+'</span><div class="flex items-center gap-1">'+(t.isActive?'<svg class="w-3.5 h-3.5 text-[#4f46e5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>':'')+delBtn+'</div></div>';}).join('');
                 mb.classList.toggle('text-[#4f46e5]',ht.some(function(t){return t.isActive;}));
             }else{mc.classList.add('hidden');}
         }
         window.recalculateTabsLayout=recalculateTabsLayout;
         function toggleMoreTabs(e){if(e)e.stopPropagation();document.getElementById('more-tabs-menu').classList.toggle('hidden');}
         window.toggleMoreTabs=toggleMoreTabs;
-        function removeCustomTab(id){['wrapper-','content-','btn-'].forEach(function(p){var el=document.getElementById(p+id);if(el)el.remove();});switchTab('tab_0');recalculateTabsLayout();}
+        function removeCustomTab(id){if(!id||!id.startsWith('custom_'))return;['wrapper-','content-','btn-'].forEach(function(p){var el=document.getElementById(p+id);if(el)el.remove();});switchTab('tab_0');recalculateTabsLayout();}
         window.removeCustomTab=removeCustomTab;
         document.addEventListener('click',function(e){var mc=document.getElementById('more-tabs-container');if(mc&&!mc.contains(e.target)){document.getElementById('more-tabs-menu').classList.add('hidden');}});
 
-        function switchTab(id){activeTabId=id;document.querySelectorAll('.tab-content').forEach(function(el){el.classList.add('hidden');});document.querySelectorAll('#tabs .tab-btn').forEach(function(el){el.classList.remove('text-[#4f46e5]','border-[#4f46e5]','font-semibold');el.classList.add('border-transparent','text-gray-500');});var c=document.getElementById('content-'+id);if(c)c.classList.remove('hidden');var b=document.getElementById('btn-'+id);if(b){b.classList.remove('border-transparent','text-gray-500');b.classList.add('text-[#4f46e5]','border-[#4f46e5]','font-semibold');}if(id==='bookmarks')renderBookmarks();updateResultCount();setTimeout(recalculateTabsLayout,10);}
+        function switchTab(id){activeTabId=id;document.querySelectorAll('.tab-content').forEach(function(el){el.classList.add('hidden');});document.querySelectorAll('#tabs .tab-btn').forEach(function(el){el.classList.remove('text-[#4f46e5]','border-[#4f46e5]','font-semibold');el.classList.add('border-transparent','text-gray-500');});var c=document.getElementById('content-'+id);if(c)c.classList.remove('hidden');var b=document.getElementById('btn-'+id);if(b){b.classList.remove('border-transparent','text-gray-500');b.classList.add('text-[#4f46e5]','border-[#4f46e5]','font-semibold');}if(id==='bookmarks')renderBookmarks();else{currentTagFilter='';rebuildTagFilter();applyTagFilter();}updateResultCount();setTimeout(recalculateTabsLayout,10);}
         window.switchTab=switchTab;
 
-        function updateResultCount(){var el=document.getElementById('result-count');if(!el)return;var ac=document.querySelector('.tab-content:not(.hidden)');if(!ac){el.textContent='共 0 篇论文';return;}var n=0;ac.querySelectorAll('.grid > div:not(.col-span-full)').forEach(function(c){if(c.querySelector('a[href]')&&c.querySelector('.bookmark-btn,button[onclick*="toggleBookmark"]'))n++;});el.textContent='共 '+n+' 篇论文';}
+        function updateResultCount(){var el=document.getElementById('result-count');if(!el)return;var ac=document.querySelector('.tab-content:not(.hidden)');if(!ac){el.textContent='共 0 篇论文';return;}var n=0;ac.querySelectorAll('.paper-card').forEach(function(c){if(c.style.display!=='none'&&c.querySelector('.bookmark-btn'))n++;});if(n===0){var fallback=ac.querySelectorAll('.grid > div:not(.col-span-full)');fallback.forEach(function(c){if(c.querySelector('a[href]')&&c.querySelector('.bookmark-btn,button[onclick*="toggleBookmark"]'))n++;});}el.textContent='共 '+n+' 篇论文';}
         window.updateResultCount=updateResultCount;
 
         // ─── Bookmarks ───
@@ -338,23 +340,44 @@
         window.selectFilter=selectFilter;
         document.addEventListener('click',function(e){var d=document.getElementById('filter-dropdown-menu');if(d&&!d.classList.contains('hidden')&&!e.target.closest('#filter-dropdown-container'))d.classList.add('hidden');});
 
+        // ─── Tag filter (dynamic from cards) ───
+        var currentTagFilter='';
+        function rebuildTagFilter(){
+            var bar=document.getElementById('tag-filter-bar');if(!bar)return;
+            var ac=document.querySelector('.tab-content:not(.hidden)');
+            var tags=new Set();
+            if(ac){ac.querySelectorAll('.paper-card').forEach(function(c){var t=c.getAttribute('data-tag');if(t)tags.add(t);});}
+            var arr=Array.from(tags).sort();
+            var html='<button onclick="selectTagFilter(\'\')" class="tag-chip px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all '+(!currentTagFilter?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#444]')+'" data-tag="">全部</button>';
+            arr.forEach(function(t){html+='<button onclick="selectTagFilter(\''+t+'\')" class="tag-chip px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all '+(currentTagFilter===t?'bg-[#4f46e5] text-white':'bg-gray-100 dark:bg-[#333] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#444]')+'" data-tag="'+t+'">'+t+'</button>';});
+            bar.innerHTML=html;
+        }
+        function selectTagFilter(tag){currentTagFilter=tag;rebuildTagFilter();applyTagFilter();}
+        function applyTagFilter(){var ac=document.querySelector('.tab-content:not(.hidden)');if(!ac)return;ac.querySelectorAll('.paper-card').forEach(function(c){var t=c.getAttribute('data-tag')||'';c.style.display=!currentTagFilter||t===currentTagFilter?'':'none';});updateResultCount();}
+        window.selectTagFilter=selectTagFilter;
+        window.rebuildTagFilter=rebuildTagFilter;
+
         // ─── Search ───
         function handleSearch(e){if(e.key==='Enter')searchCustomTopic();}
         window.handleSearch=handleSearch;
+        function paperCardHtml(p){var ct=p.title.replace(/'/g,"\\'").replace(/"/g,'&quot;'),cs=p.snippet.replace(/'/g,"\\'").replace(/"/g,'&quot;'),tag=p.domain||'Web';return '<div class="paper-card p-6 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#2c2c2c] rounded-2xl flex flex-col hover:shadow-lg transition-all group" data-tag="'+tag+'"><div class="flex-1"><div class="mb-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border '+(p.tag_color||'bg-gray-100 text-gray-600 border-gray-200')+'">'+tag+'</span></div><a href="'+p.link+'" target="_blank" class="text-[15px] font-bold text-gray-900 dark:text-gray-100 hover:text-[#4f46e5] block mb-2 font-serif line-clamp-2 leading-snug">'+p.title+'</a><p class="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed mb-4 line-clamp-3">'+p.snippet+'</p></div><div class="pt-3 border-t border-gray-100 dark:border-[#2c2c2c] flex justify-between items-center"><div class="flex gap-3"><a href="'+p.link+'" target="_blank" class="text-[12px] font-medium text-gray-500 hover:text-gray-900 transition-colors">原文 ↗</a><button onclick="openDeepReadModal(\''+ct+'\',\''+p.link+'\')" class="text-[12px] font-medium text-[#4f46e5] hover:text-indigo-800 transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>AI 精读</button></div><button onclick="toggleBookmark(this,event)" class="bookmark-btn text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors" data-link="'+p.link+'" data-title="'+ct+'" data-snippet="'+cs+'" data-domain="'+tag+'"><svg class="w-4.5 h-4.5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg></button></div></div>';}
+        function loadMoreBtn(tabId){return '<div class="col-span-full mt-2 flex justify-center pb-4"><button onclick="loadMorePapers(\''+tabId+'\')" class="px-5 py-2 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] hover:border-gray-300 text-gray-500 text-[12px] font-medium rounded-full transition-all shadow-sm flex items-center gap-2">发现更多优质内容 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button></div>';}
+        async function loadMorePapers(forceTabId){var fb=document.getElementById('btn-'+forceTabId);if(!fb)return;var query=fb.getAttribute('data-query')||'';if(!query)return;var source=document.getElementById('search-source-filter').value;document.getElementById('loading-spinner').classList.remove('hidden');try{var res=await fetch('/api/search?q='+encodeURIComponent(query)+'&source='+encodeURIComponent(source)+'&max_results=20');var data=await res.json();var html='<div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">';if(!data.length){html+='<div class="col-span-full text-center text-[13px] text-gray-500 py-10">未找到更多内容</div>';}else{data.forEach(function(p){html+=paperCardHtml(p);});}html+='</div>'+loadMoreBtn(forceTabId);var ce=document.getElementById('content-'+forceTabId);if(ce)ce.innerHTML=html;updateBookmarkIcons();currentTagFilter='';rebuildTagFilter();applyTagFilter();updateResultCount();}catch(err){console.error(err);}document.getElementById('loading-spinner').classList.add('hidden');}
+        window.loadMorePapers=loadMorePapers;
         async function searchCustomTopic(forceTabId){
             var input=document.getElementById('custom-topic-input'),query=input.value.trim(),source=document.getElementById('search-source-filter').value;
             if(forceTabId){var fb=document.getElementById('btn-'+forceTabId);query=fb?(fb.getAttribute('data-query')||query):query;}
             if(!query)return;
             document.getElementById('loading-spinner').classList.remove('hidden');
             try{
-                var res=await fetch('/api/search?q='+encodeURIComponent(query)+'&source='+encodeURIComponent(source));
+                var res=await fetch('/api/search?q='+encodeURIComponent(query)+'&source='+encodeURIComponent(source)+'&max_results=8');
                 var data=await res.json();
                 var html='<div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">';
                 if(!data.length){html+='<div class="col-span-full text-center text-[13px] text-gray-500 py-10">未找到相关内容</div>';}
-                else{data.forEach(function(p){var ct=p.title.replace(/'/g,"\\'").replace(/"/g,'&quot;'),cs=p.snippet.replace(/'/g,"\\'").replace(/"/g,'&quot;');html+='<div class="p-6 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#2c2c2c] rounded-2xl flex flex-col hover:shadow-lg transition-all group"><div class="flex-1"><div class="mb-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border '+(p.tag_color||'bg-gray-100 text-gray-600 border-gray-200')+'">'+p.domain+'</span></div><a href="'+p.link+'" target="_blank" class="text-[15px] font-bold text-gray-900 dark:text-gray-100 hover:text-[#4f46e5] block mb-2 font-serif line-clamp-2 leading-snug">'+p.title+'</a><p class="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed mb-4 line-clamp-3">'+p.snippet+'</p></div><div class="pt-3 border-t border-gray-100 dark:border-[#2c2c2c] flex justify-between items-center"><div class="flex gap-3"><a href="'+p.link+'" target="_blank" class="text-[12px] font-medium text-gray-500 hover:text-gray-900 transition-colors">原文 ↗</a><button onclick="openDeepReadModal(\''+ct+'\',\''+p.link+'\')" class="text-[12px] font-medium text-[#4f46e5] hover:text-indigo-800 transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>AI 精读</button></div><button onclick="toggleBookmark(this,event)" class="bookmark-btn text-gray-300 dark:text-gray-600 hover:text-amber-400 transition-colors" data-link="'+p.link+'" data-title="'+ct+'" data-snippet="'+cs+'" data-domain="'+p.domain+'"><svg class="w-4.5 h-4.5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg></button></div></div>';});}
+                else{data.forEach(function(p){html+=paperCardHtml(p);});}
                 html+='</div>';
-                if(forceTabId){var ce=document.getElementById('content-'+forceTabId);if(ce){ce.innerHTML=html;ce.innerHTML+='<div class="col-span-full mt-2 flex justify-center pb-4"><button onclick="document.getElementById(\'search-source-filter\').value=\'all\';document.getElementById(\'filter-current-text\').innerText=\'泛科技检索\';searchCustomTopic(\''+forceTabId+'\');" class="px-5 py-2 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] hover:border-gray-300 text-gray-500 text-[12px] font-medium rounded-full transition-all shadow-sm flex items-center gap-2">发现更多优质内容 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button></div>';}}
-                else{var tid='custom_'+Date.now(),sn=query.length>12?query.substring(0,12)+'...':query,tc=document.getElementById('tabs'),wr=document.createElement('div');wr.id='wrapper-'+tid;wr.className='group relative flex-shrink-0 flex items-center';var nb=document.createElement('button');nb.id='btn-'+tid;nb.className='tab-btn whitespace-nowrap py-2 px-4 text-[14px] focus:outline-none flex items-center transition-colors border-b-2 border-transparent text-gray-500 -mb-px';nb.setAttribute('data-custom','true');nb.innerHTML=sn+' <span onclick="removeCustomTab(\''+tid+'\')" class="ml-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">&times;</span>';nb.onclick=function(){switchTab(tid);};wr.appendChild(nb);tc.appendChild(wr);var cc=document.getElementById('tab-contents-container'),nc=document.createElement('div');nc.id='content-'+tid;nc.className='tab-content hidden';nc.innerHTML=html;cc.appendChild(nc);input.value='';switchTab(tid);}
+                if(forceTabId){var ce=document.getElementById('content-'+forceTabId);if(ce){ce.innerHTML=html+loadMoreBtn(forceTabId);currentTagFilter='';rebuildTagFilter();applyTagFilter();}}
+                else{var tid='custom_'+Date.now(),sn=query.length>12?query.substring(0,12)+'...':query,tc=document.getElementById('tabs'),wr=document.createElement('div');wr.id='wrapper-'+tid;wr.className='group relative flex-shrink-0 flex items-center';var nb=document.createElement('button');nb.id='btn-'+tid;nb.className='tab-btn whitespace-nowrap py-2 px-4 text-[14px] focus:outline-none flex items-center transition-colors border-b-2 border-transparent text-gray-500 -mb-px';nb.setAttribute('data-custom','true');nb.setAttribute('data-query',query);nb.innerHTML=sn+' <span onclick="removeCustomTab(\''+tid+'\')" class="ml-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">&times;</span>';nb.onclick=function(){switchTab(tid);};wr.appendChild(nb);tc.appendChild(wr);var cc=document.getElementById('tab-contents-container'),nc=document.createElement('div');nc.id='content-'+tid;nc.className='tab-content hidden';nc.innerHTML=html+loadMoreBtn(tid);cc.appendChild(nc);input.value='';switchTab(tid);}
                 updateBookmarkIcons();updateResultCount();
             }catch(err){console.error(err);}
             document.getElementById('loading-spinner').classList.add('hidden');
@@ -389,17 +412,29 @@
             if(['png','jpg','jpeg','gif','webp'].indexOf(ext)!==-1){
                 var reader=new FileReader();
                 reader.onload=function(ev){
-                    input.value+=(input.value?'\n\n':'')+'[Image attached: '+f.name+' — '+Math.round(f.size/1024)+'KB]\n(Image data included for context. Please describe or analyze this image.)';
-                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
-                    appendChatBubble('📎 Image: '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
+                    var dataUrl=ev.target.result;
+                    appendChatBubble('📎 '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
                     var imgDiv=document.createElement('div');imgDiv.className='interactive-bubble ml-auto w-fit max-w-[60%] mb-4 fade-in';
-                    imgDiv.innerHTML='<img src="'+ev.target.result+'" class="rounded-xl max-h-64 border border-gray-200 dark:border-[#333]" alt="'+f.name+'">';
+                    imgDiv.innerHTML='<img src="'+dataUrl+'" class="rounded-xl max-h-64 border border-gray-200 dark:border-[#333]" alt="'+f.name+'">';
                     document.getElementById('chatContainer').appendChild(imgDiv);
+                    var b64=dataUrl.split(',')[1]||'';
+                    var lb=appendChatBubble('<div class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-[#4f46e5]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span class="text-[13px] text-gray-500">Qwen3.5 识别中...</span></div>',false);
+                    fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,prompt:'请详细描述这张图片的内容。如果包含文字、代码或公式，请完整提取出来。用中文回答。'})}).then(function(r){return r.json();}).then(function(d){
+                        if(d.content){lb.innerHTML=marked.parse(d.content);input.value+=(input.value?'\n\n':'')+'[Image OCR result for '+f.name+']\n'+d.content;}
+                        else{lb.innerHTML='<span class="text-[12px] text-amber-500">Vision model unavailable: '+(d.error||'unknown')+'</span>';input.value+=(input.value?'\n\n':'')+'[Image attached: '+f.name+']';}
+                        input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                    }).catch(function(err){lb.innerHTML='<span class="text-[12px] text-red-500">Vision request failed</span>';});
                 };
                 reader.readAsDataURL(f);
             } else if(ext==='pdf'){
-                input.value+=(input.value?'\n\n':'')+'[PDF attached: '+f.name+' — '+Math.round(f.size/1024)+'KB]\n(Note: PDF binary content cannot be read directly. Please provide a URL to the paper for web-search-based analysis, or paste the abstract/text manually.)';
-                input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                appendChatBubble('📎 PDF: '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
+                var lb=appendChatBubble('<div class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-[#4f46e5]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span class="text-[13px] text-gray-500">PDF 解析中 (rendering pages → Qwen3.5)...</span></div>',false);
+                var formData=new FormData();formData.append('file',f);
+                fetch('/api/parse-pdf',{method:'POST',body:formData}).then(function(r){return r.json();}).then(function(d){
+                    if(d.content){lb.innerHTML=marked.parse('**PDF 内容提取：**\n\n'+d.content.substring(0,3000)+(d.content.length>3000?'\n\n*...（已截断）*':''));input.value+=(input.value?'\n\n':'')+'[PDF content: '+f.name+']\n'+d.content.substring(0,6000);}
+                    else{lb.innerHTML='<span class="text-[12px] text-amber-500">PDF解析失败: '+(d.error||'unknown')+'。请手动粘贴文本或提供链接。</span>';}
+                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                }).catch(function(err){lb.innerHTML='<span class="text-[12px] text-red-500">PDF parse failed</span>';});
             } else {
                 var reader=new FileReader();
                 reader.onload=function(ev){
@@ -476,7 +511,7 @@
             if(sr){sr.classList.add('bg-[#4f46e5]/5');var ck=sr.querySelector('.check-icon');if(ck){ck.classList.remove('opacity-0');ck.classList.add('opacity-100');}}
             var fb=document.querySelector('#tabs .tab-btn');
             if(fb){fb.classList.remove('border-transparent','text-gray-500');fb.classList.add('text-[#4f46e5]','border-[#4f46e5]','font-semibold');}
-            updateResultCount();updateModelCount();
+            rebuildTagFilter();updateResultCount();updateModelCount();
             var tw=document.getElementById('tabs-wrapper');
             if(tw){new ResizeObserver(function(){recalculateTabsLayout();}).observe(tw);recalculateTabsLayout();}
         });

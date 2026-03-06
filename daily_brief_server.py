@@ -3,12 +3,20 @@
 import os
 import glob
 import json
+import re
 import subprocess
 import urllib.request
 
 import yaml
 from flask import Flask, request, jsonify, send_file
 from openai import OpenAI
+
+
+def _strip_think(text: str) -> str:
+    """Remove <think>...</think> blocks (including unclosed ones) from model output."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"^.*?</think>", "", text, flags=re.DOTALL)
+    return text.strip()
 
 app = Flask(__name__)
 
@@ -126,9 +134,10 @@ def api_history():
 def api_search():
     query = request.args.get("q", "")
     source = request.args.get("source", "all")
+    max_results = min(20, max(8, int(request.args.get("max_results", 8))))
     if source == "academic":
         query += " (site:arxiv.org OR site:nips.cc OR site:icml.cc OR site:iclr.cc OR site:aclweb.org)"
-    payload = json.dumps({"api_key": TAVILY_KEY, "query": query, "search_depth": "advanced", "time_range": "month", "max_results": 8}).encode("utf-8")
+    payload = json.dumps({"api_key": TAVILY_KEY, "query": query, "search_depth": "advanced", "time_range": "month", "max_results": max_results}).encode("utf-8")
     try:
         req = urllib.request.Request("https://api.tavily.com/search", data=payload, headers={"Content-Type": "application/json"})
         resp = urllib.request.urlopen(req, timeout=30).read()
@@ -165,12 +174,84 @@ def api_test_connection():
         client = OpenAI(base_url=base_url, api_key=api_key)
         resp = client.chat.completions.create(
             model=model_name,
-            messages=[{"role": "user", "content": "Say 'ok' in one word."}],
-            max_tokens=10, temperature=0,
+            messages=[{"role": "user", "content": "Reply with exactly one word: ok"}],
+            max_tokens=16, temperature=0,
         )
-        return jsonify({"ok": True, "model": model_name, "response": resp.choices[0].message.content[:50]})
+        raw = resp.choices[0].message.content or ""
+        clean = _strip_think(raw) or "ok"
+        return jsonify({"ok": True, "model": model_name, "response": clean[:30]})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+VISION_BASE_URL = os.environ.get("VISION_BASE_URL", "http://127.0.0.1:30000/v1")
+VISION_MODEL = os.environ.get("VISION_MODEL", "/data/share/eval_model/base/Qwen/Qwen3.5-9B")
+
+
+@app.route("/api/vision", methods=["POST"])
+def api_vision():
+    """Process image/PDF via local vision model (sglang + Qwen3.5-9B)."""
+    import base64 as b64mod
+    data = request.json or {}
+    image_b64 = data.get("image", "")
+    prompt = data.get("prompt", "Describe this image in detail. If it contains text, extract the text content.")
+    if not image_b64:
+        return jsonify({"content": "", "error": "No image data"})
+    try:
+        client = OpenAI(base_url=VISION_BASE_URL, api_key="EMPTY")
+        messages = [{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
+        ]}]
+        resp = client.chat.completions.create(
+            model=VISION_MODEL, messages=messages, max_tokens=2048, temperature=0.3,
+        )
+        raw = resp.choices[0].message.content or ""
+        return jsonify({"content": _strip_think(raw)})
+    except Exception as e:
+        return jsonify({"content": "", "error": f"Vision model error: {e}"})
+
+
+@app.route("/api/parse-pdf", methods=["POST"])
+def api_parse_pdf():
+    """Parse PDF by rendering pages to images and sending to vision model."""
+    import base64 as b64mod
+    import tempfile
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"content": "", "error": "No file uploaded"})
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        return jsonify({"content": "", "error": "PyMuPDF not installed. Run: pip install pymupdf"})
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
+            f.save(tmp.name)
+            doc = fitz.open(tmp.name)
+            all_text = []
+            max_pages = min(len(doc), 5)
+            for i in range(max_pages):
+                page = doc[i]
+                pix = page.get_pixmap(dpi=200)
+                img_bytes = pix.tobytes("png")
+                b64 = b64mod.b64encode(img_bytes).decode("utf-8")
+                try:
+                    client = OpenAI(base_url=VISION_BASE_URL, api_key="EMPTY")
+                    msgs = [{"role": "user", "content": [
+                        {"type": "text", "text": f"Extract ALL text from page {i+1} of this PDF. Include titles, authors, abstracts, formulas, and body text. Output as plain text."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                    ]}]
+                    resp = client.chat.completions.create(
+                        model=VISION_MODEL, messages=msgs, max_tokens=2048, temperature=0.1,
+                    )
+                    raw = resp.choices[0].message.content or ""
+                    all_text.append(f"--- Page {i+1} ---\n{_strip_think(raw)}")
+                except Exception as e:
+                    all_text.append(f"--- Page {i+1} ---\n[Vision error: {e}]")
+            doc.close()
+            return jsonify({"content": "\n\n".join(all_text)})
+    except Exception as e:
+        return jsonify({"content": "", "error": str(e)[:300]})
 
 
 @app.route("/api/deep-read")
@@ -205,7 +286,6 @@ def api_chat():
 
     if web_search and msgs:
         last_msg = msgs[-1].get("content", "")
-        import re
         urls = re.findall(r'https?://[^\s<>"\']+', last_msg)
         if urls:
             fetched = _fetch_url_with_playwright(urls[0])

@@ -105,7 +105,7 @@ def get_paper_html(paper: dict) -> str:
     tag, tag_color = _classify_link(link)
     title_escaped = paper.get("title", "").replace("'", "\\'").replace('"', "&quot;")
     snippet = paper.get("content", "").replace("\n", " ")[:300].replace('"', "&quot;")
-    return f'''<div class="p-5 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#2c2c2c] rounded-2xl flex flex-col hover:shadow-lg transition-all group">
+    return f'''<div class="paper-card p-5 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#2c2c2c] rounded-2xl flex flex-col hover:shadow-lg transition-all group" data-tag="{tag}">
         <div class="flex-1"><div class="mb-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border {tag_color}">{tag}</span></div>
             <a href="{link}" target="_blank" class="text-[15px] font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 block mb-2 font-serif line-clamp-2 leading-snug">{paper.get("title", "")}</a>
             <p class="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed mb-4 line-clamp-3">{paper.get("content", "")[:280]}...</p></div>
@@ -165,7 +165,7 @@ def main():
         else:
             for r in results:
                 papers_html += get_paper_html(r)
-        papers_html += f'<div class="col-span-full mt-2 flex justify-center pb-4"><button onclick="document.getElementById(\'search-source-filter\').value=\'all\';document.getElementById(\'filter-current-text\').innerText=\'泛科技检索\';searchCustomTopic(\'{tab_id}\');" class="px-5 py-2 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] hover:border-gray-300 text-gray-500 text-[12px] font-medium rounded-full transition-all shadow-sm flex items-center gap-2">发现更多优质内容 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button></div>'
+        papers_html += f'''<div class="col-span-full mt-2 flex justify-center pb-4"><button onclick="loadMorePapers('{tab_id}')" class="px-5 py-2 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] hover:border-gray-300 text-gray-500 text-[12px] font-medium rounded-full transition-all shadow-sm flex items-center gap-2">发现更多优质内容 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button></div>'''
         papers_html += "</div></div>"
 
     template_path = os.path.join(BASE_DIR, "template.html")

@@ -24,14 +24,17 @@ OpenClaw Academic Radar automatically aggregates the latest AI research papers, 
 | Feature | Description |
 |---------|-------------|
 | **Paper Radar** | Daily papers from arXiv, NeurIPS, ICML, ICLR, ACL across customizable topics |
+| **Load More** | "发现更多" keeps current source (academic/web), fetches up to 20 results |
+| **Tag Filter** | Filter by arXiv, NeurIPS, ICML, ICLR, ACL, GitHub, Web |
 | **AI Deep Read** | Interactive chat-based paper analysis with multi-turn conversation |
 | **Multi-Model** | Built-in gpt-5.4, glm-5 + unlimited custom models via settings UI |
 | **SOTA Tracker** | Live model rankings from [arena.ai](https://arena.ai/leaderboard) |
-| **Conference DDLs** | Upcoming CCF-A/B deadlines from [ccfddl.com](https://ccfddl.github.io/) |
+| **Conference DDLs** | Upcoming CCF-A/B deadlines from [ccfddl.github.io](https://ccfddl.github.io/) |
 | **Custom Topics** | Configure research topics via `RADAR_TOPICS` environment variable |
 | **Dark Mode** | Full light/dark/system theme support |
 | **Bookmarks** | Save papers locally via localStorage |
-| **File Attach** | Paste paper text/abstracts directly into the chat |
+| **File Attach** | Paste paper text/abstracts, images (PNG/JPG), or PDF metadata into chat |
+| **Web Search** | Playwright fetches page content for LLM when URLs are in messages |
 
 ## Quick Start
 
@@ -39,6 +42,10 @@ OpenClaw Academic Radar automatically aggregates the latest AI research papers, 
 git clone https://github.com/shenhao-stu/openclaw-academic-radar.git
 cd openclaw-academic-radar
 pip install -r requirements.txt
+
+# Playwright (for Web Search): Python package uses its own browser install.
+# If you already ran `npx playwright install`, browsers may be shared.
+python -m playwright install chromium
 
 cp .env.example .env  # Edit with your API keys
 export $(cat .env | xargs)
@@ -89,6 +96,15 @@ The `gh-pages` branch includes a GitHub Actions workflow that:
 | `TAVILY_API_KEY` | Paper search (required for report generation) |
 
 > **Note:** LLM API keys (`OHMYAPI_KEY`, `GLM_API_KEY`) are only needed for the Flask server's AI Deep Read feature. The static GitHub Pages deployment only requires `TAVILY_API_KEY`.
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Web Search not working | Ensure `python -m playwright install chromium` ran successfully |
+| No papers shown | Check `TAVILY_API_KEY` is set; verify Tavily API quota |
+| AI Deep Read fails | Configure `OHMYAPI_KEY` or `GLM_API_KEY`, or add custom model in Settings |
+| Port 8081 in use | Change `port` in `config.yaml` or stop the conflicting process |
 
 ## License
 

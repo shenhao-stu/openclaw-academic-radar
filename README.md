@@ -1,61 +1,94 @@
-# OpenClaw Academic Radar 🦞
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-blue?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/flask-3.0+-black?logo=flask" alt="Flask">
+  <img src="https://img.shields.io/badge/tailwind-CDN-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <img src="https://img.shields.io/github/actions/workflow/status/shenhao-stu/openclaw-academic-radar/daily-report.yml?label=daily%20report" alt="CI">
+</p>
 
-An automated AI academic paper radar with Claude-style minimalist UI, designed for the Fudan University AI research community.
+<h1 align="center">🦞 OpenClaw Academic Radar</h1>
+
+<p align="center">
+  <strong>Automated AI research paper radar with Claude-style UI</strong><br>
+  Daily aggregation · Interactive AI deep-read · Multi-model chat · Dark mode
+</p>
+
+---
+
+## Overview
+
+OpenClaw Academic Radar automatically aggregates the latest AI research papers, industry news, and conference deadlines into a single, beautifully rendered dashboard. It features an interactive **AI Deep Read** chat interface for paper analysis, powered by configurable LLM backends.
 
 ## Features
 
-- **Daily Paper Radar** — Fetches latest papers from arXiv, NeurIPS, ICML, ICLR, ACL via Tavily search across 5 research topics
-- **AI Deep Read** — Interactive chat-based paper analysis powered by configurable LLM backends
-- **Multi-Model Support** — Switch between gpt-5.3-codex, minimax-m2.5, glm-5, or add custom models
-- **Conference DDL Tracker** — Upcoming CCF-A/B conference deadlines at a glance
-- **SOTA Leaderboard** — Current top models from LMSYS Arena
-- **Dark Mode** — Full light/dark theme support with system preference detection
-- **Bookmarks** — Save papers locally via localStorage
+| Feature | Description |
+|---------|-------------|
+| **Paper Radar** | Daily papers from arXiv, NeurIPS, ICML, ICLR, ACL across customizable topics |
+| **AI Deep Read** | Interactive chat-based paper analysis with multi-turn conversation |
+| **Multi-Model** | Built-in gpt-5.4, glm-5 + unlimited custom models via settings UI |
+| **SOTA Tracker** | Live model rankings from [arena.ai](https://arena.ai/leaderboard) |
+| **Conference DDLs** | Upcoming CCF-A/B deadlines from [ccfddl.com](https://ccfddl.github.io/) |
+| **Custom Topics** | Configure research topics via `RADAR_TOPICS` environment variable |
+| **Dark Mode** | Full light/dark/system theme support |
+| **Bookmarks** | Save papers locally via localStorage |
+| **File Attach** | Paste paper text/abstracts directly into the chat |
 
 ## Quick Start
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/shenhao-stu/openclaw-academic-radar.git
 cd openclaw-academic-radar
 pip install -r requirements.txt
 
-# 2. Set environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# 3. Generate today's report
+cp .env.example .env  # Edit with your API keys
 export $(cat .env | xargs)
-python daily_ai_brief.py
 
-# 4. Start the server
-python daily_brief_server.py
-# Open http://localhost:8081
+python daily_ai_brief.py   # Generate report
+python daily_brief_server.py  # Serve at http://localhost:8081
 ```
 
-## Architecture
+## Project Structure
 
 ```
-├── template.html          # HTML/CSS/JS template with placeholders
-├── daily_ai_brief.py      # Report generator (Tavily → HTML)
-├── daily_brief_server.py  # Flask server (API + static serving)
-├── config.yaml            # Server configuration
-├── requirements.txt       # Python dependencies
-└── reports/               # Generated HTML reports (gitignored)
+├── template.html           # Frontend template (Tailwind CSS + vanilla JS)
+├── daily_ai_brief.py       # Report generator (Tavily search → HTML)
+├── daily_brief_server.py   # Flask API server
+├── config.yaml             # Server configuration
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment variable template
+├── .github/workflows/      # GitHub Actions (gh-pages branch)
+└── reports/                # Generated HTML (gitignored)
 ```
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `TAVILY_API_KEY` | Tavily search API key |
-| `OHMYAPI_KEY` | ohmyapi (gpt-5.3-codex) API key |
-| `NVIDIA_API_KEY` | NVIDIA (minimax-m2.5) API key |
-| `GLM_API_KEY` | Zhipu AI (glm-5) API key |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TAVILY_API_KEY` | ✅ | [Tavily](https://tavily.com) search API key |
+| `OHMYAPI_KEY` | For gpt-5.4 | ohmyapi provider key |
+| `GLM_API_KEY` | For glm-5 | Zhipu AI provider key |
+| `RADAR_TOPICS` | Optional | Custom topics: `Label\|Query;Label\|Query` |
 
 ## GitHub Pages Deployment
 
-The `gh-pages` branch supports automated daily deployment via GitHub Actions. See `.github/workflows/daily-report.yml` for the workflow configuration.
+The `gh-pages` branch includes a GitHub Actions workflow that:
+1. Runs daily at **10:00 AM Beijing time** (UTC+8)
+2. Generates the HTML report via Tavily API
+3. Deploys to GitHub Pages automatically
+
+### Setup
+
+1. Go to **Settings → Secrets** and add `TAVILY_API_KEY`
+2. Go to **Settings → Pages** and set source to **GitHub Actions**
+3. Optionally trigger manually from the **Actions** tab
+
+## GitHub Secrets Required
+
+| Secret | Purpose |
+|--------|---------|
+| `TAVILY_API_KEY` | Paper search (required for report generation) |
+
+> **Note:** LLM API keys (`OHMYAPI_KEY`, `GLM_API_KEY`) are only needed for the Flask server's AI Deep Read feature. The static GitHub Pages deployment only requires `TAVILY_API_KEY`.
 
 ## License
 
@@ -63,4 +96,4 @@ MIT
 
 ---
 
-Built by [OpenClaw](https://github.com/shenhao-stu) 🦞
+<p align="center">Built with ❤️ by <a href="https://github.com/shenhao-stu">OpenClaw</a></p>

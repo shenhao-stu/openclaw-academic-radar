@@ -197,7 +197,7 @@
                             <button onclick="clearInput()" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all" title="Clear Input"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 20H7L3 16a1 1 0 010-1.41l9.59-9.59a2 2 0 012.82 0L20 9.59A2 2 0 0120 12.41L13.41 19" stroke-width="1.8"/><line x1="6" y1="14" x2="10" y2="18" stroke-width="1.8"/></svg></button>
                             <label class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#333] transition-all cursor-pointer" title="Attach text file">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                <input type="file" id="file-attach" class="hidden" accept=".txt,.md,.pdf,.tex" onchange="handleFileAttach(event)">
+                                <input type="file" id="file-attach" class="hidden" accept=".txt,.md,.tex,.pdf,.png,.jpg,.jpeg,.gif,.webp" onchange="handleFileAttach(event)">
                             </label>
                             <div class="flex-1"></div>
                             <div id="token-counter" class="text-[11px] text-gray-400 font-mono mr-1.5">0 / 8,192</div>
@@ -271,7 +271,12 @@
                     </div>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-gray-50 dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-[#333] flex justify-end gap-3">
+            <div class="px-6 py-4 bg-gray-50 dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-[#333] flex items-center gap-3">
+                <button onclick="testConnection()" id="test-conn-btn" class="px-4 py-2 text-[13px] font-medium text-[#4f46e5] hover:bg-[#4f46e5]/10 rounded-lg transition-colors flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Test
+                </button>
+                <span id="test-conn-result" class="text-[11px] flex-1"></span>
                 <button onclick="toggleSettingsModal()" class="px-4 py-2 text-[13px] font-medium text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Cancel</button>
                 <button onclick="saveSettings()" class="px-5 py-2 bg-gray-900 dark:bg-white text-white dark:text-black text-[13px] font-semibold rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">Save</button>
             </div>
@@ -369,7 +374,7 @@
         function startLoadingTimer(){var start=Date.now(),el=document.getElementById('loading-elapsed');if(loadingTimer)clearInterval(loadingTimer);loadingTimer=setInterval(function(){var s=Math.floor((Date.now()-start)/1000);el.textContent=s+'s';},1000);}
         function stopLoadingTimer(){if(loadingTimer){clearInterval(loadingTimer);loadingTimer=null;}}
 
-        function startInitialAnalysis(){document.getElementById('setupState').classList.add('hidden');document.getElementById('modalLoading').classList.remove('hidden');startLoadingTimer();var txt='请详细解析这篇论文框架：\n标题：'+paperTitle+'\n链接：'+paperLink+'\n请按以下结构输出Markdown：\n### 🌟 核心总结\n### 🎯 研究背景与动机\n### 💡 核心方法与创新点\n### 📊 实验结论与启发';chatCtx=[{role:'user',content:txt}];var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';fetch('/api/deep-read?title='+encodeURIComponent(paperTitle)+'&url='+encodeURIComponent(paperLink)+'&url_ov='+encodeURIComponent(cu)+'&key_ov='+encodeURIComponent(ck)+'&model_ov='+encodeURIComponent(cm)).then(function(r){return r.json();}).then(function(d){stopLoadingTimer();document.getElementById('modalLoading').classList.add('hidden');document.getElementById('initialAnalysisWrap').classList.remove('hidden');document.getElementById('initialAnalysis').innerHTML=marked.parse(d.content||'生成失败');chatCtx.push({role:'assistant',content:d.content});}).catch(function(e){stopLoadingTimer();document.getElementById('modalLoading').classList.add('hidden');document.getElementById('initialAnalysisWrap').classList.remove('hidden');document.getElementById('initialAnalysis').innerHTML='<div class="text-red-500">请求失败: '+e+'</div>';});}
+        function startInitialAnalysis(){document.getElementById('setupState').classList.add('hidden');document.getElementById('modalLoading').classList.remove('hidden');startLoadingTimer();var txt='请详细解析这篇论文框架：\n标题：'+paperTitle+'\n链接：'+paperLink+'\n请按以下结构输出Markdown：\n### 🌟 核心总结\n### 🎯 研究背景与动机\n### 💡 核心方法与创新点\n### 📊 实验结论与启发';chatCtx=[{role:'user',content:txt}];var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';fetch('/api/deep-read?title='+encodeURIComponent(paperTitle)+'&url='+encodeURIComponent(paperLink)+'&url_ov='+encodeURIComponent(cu)+'&key_ov='+encodeURIComponent(ck)+'&model_ov='+encodeURIComponent(cm)+'&web_search='+(webSearch?'true':'false')).then(function(r){return r.json();}).then(function(d){stopLoadingTimer();document.getElementById('modalLoading').classList.add('hidden');document.getElementById('initialAnalysisWrap').classList.remove('hidden');document.getElementById('initialAnalysis').innerHTML=marked.parse(d.content||'生成失败');chatCtx.push({role:'assistant',content:d.content});}).catch(function(e){stopLoadingTimer();document.getElementById('modalLoading').classList.add('hidden');document.getElementById('initialAnalysisWrap').classList.remove('hidden');document.getElementById('initialAnalysis').innerHTML='<div class="text-red-500">请求失败: '+e+'</div>';});}
         window.startInitialAnalysis=startInitialAnalysis;
 
         function closeDeepReadModal(){stopLoadingTimer();var m=document.getElementById('deepReadModal'),inner=m.querySelector('.modal-inner');m.classList.add('opacity-0');if(inner)inner.classList.add('translate-y-8');setTimeout(function(){m.classList.add('hidden');m.classList.remove('flex');document.body.style.overflow='';},300);}
@@ -377,10 +382,38 @@
 
         function appendChatBubble(t,u){var c=document.getElementById('chatContainer'),d=document.createElement('div');d.className=u?'interactive-bubble ml-auto w-fit max-w-[85%] bg-gray-100 dark:bg-[#252525] text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl rounded-tr-sm mb-4 text-[14px] leading-relaxed shadow-sm fade-in text-left break-words':'interactive-bubble mr-auto w-fit max-w-[95%] border border-gray-100 dark:border-[#2c2c2c] p-5 rounded-2xl rounded-tl-sm mb-4 markdown-body shadow-sm fade-in text-left break-words';if(u)d.innerText=t;else d.innerHTML=marked.parse(t);c.appendChild(d);c.scrollTo({top:c.scrollHeight,behavior:'smooth'});return d;}
 
-        function handleFileAttach(e){var f=e.target.files[0];if(!f)return;var reader=new FileReader();reader.onload=function(ev){var input=document.getElementById('chatInput');input.value+=(input.value?'\n\n':'')+'[Attached: '+f.name+']\n'+ev.target.result.substring(0,8000);input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();};reader.readAsText(f);e.target.value='';}
+        function handleFileAttach(e){
+            var f=e.target.files[0];if(!f)return;
+            var ext=f.name.split('.').pop().toLowerCase();
+            var input=document.getElementById('chatInput');
+            if(['png','jpg','jpeg','gif','webp'].indexOf(ext)!==-1){
+                var reader=new FileReader();
+                reader.onload=function(ev){
+                    input.value+=(input.value?'\n\n':'')+'[Image attached: '+f.name+' — '+Math.round(f.size/1024)+'KB]\n(Image data included for context. Please describe or analyze this image.)';
+                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                    appendChatBubble('📎 Image: '+f.name+' ('+Math.round(f.size/1024)+'KB)',true);
+                    var imgDiv=document.createElement('div');imgDiv.className='interactive-bubble ml-auto w-fit max-w-[60%] mb-4 fade-in';
+                    imgDiv.innerHTML='<img src="'+ev.target.result+'" class="rounded-xl max-h-64 border border-gray-200 dark:border-[#333]" alt="'+f.name+'">';
+                    document.getElementById('chatContainer').appendChild(imgDiv);
+                };
+                reader.readAsDataURL(f);
+            } else if(ext==='pdf'){
+                input.value+=(input.value?'\n\n':'')+'[PDF attached: '+f.name+' — '+Math.round(f.size/1024)+'KB]\n(Note: PDF binary content cannot be read directly. Please provide a URL to the paper for web-search-based analysis, or paste the abstract/text manually.)';
+                input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+            } else {
+                var reader=new FileReader();
+                reader.onload=function(ev){
+                    var text=ev.target.result||'';
+                    input.value+=(input.value?'\n\n':'')+'[Attached: '+f.name+']\n'+text.substring(0,8000);
+                    input.style.height='auto';input.style.height=input.scrollHeight+'px';updateTokenCounter();
+                };
+                reader.readAsText(f);
+            }
+            e.target.value='';
+        }
         window.handleFileAttach=handleFileAttach;
 
-        async function sendChatMessage(){var input=document.getElementById('chatInput'),msg=input.value.trim();if(!msg)return;if(!document.getElementById('setupState').classList.contains('hidden')){document.getElementById('setupState').classList.add('hidden');chatCtx=[];}input.value='';input.style.height='';updateTokenCounter();appendChatBubble(msg,true);chatCtx.push({role:'user',content:msg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm})});var d=await r.json();lb.innerHTML=marked.parse(d.content);chatCtx.push({role:'assistant',content:d.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
+        async function sendChatMessage(){var input=document.getElementById('chatInput'),msg=input.value.trim();if(!msg)return;if(!document.getElementById('setupState').classList.contains('hidden')){document.getElementById('setupState').classList.add('hidden');chatCtx=[];}input.value='';input.style.height='';updateTokenCounter();appendChatBubble(msg,true);chatCtx.push({role:'user',content:msg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm,web_search:webSearch})});var d=await r.json();lb.innerHTML=marked.parse(d.content);chatCtx.push({role:'assistant',content:d.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
         window.sendChatMessage=sendChatMessage;
 
         // ─── Model ───
@@ -414,6 +447,20 @@
 
         function saveSettings(){var mid=document.getElementById('setting-model-custom').value.trim(),prov=document.getElementById('setting-provider').value.trim()||'Custom',url=document.getElementById('setting-url').value.trim(),key=document.getElementById('setting-key').value.trim();if(!mid){alert('Please enter a Model ID');return;}var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');var idx=cms.findIndex(function(m){return m.id===mid;});if(idx>-1)cms[idx]={id:mid,provider:prov,url:url,key:key};else cms.push({id:mid,provider:prov,url:url,key:key});localStorage.setItem('custom_models',JSON.stringify(cms));localStorage.setItem('llm_model',mid);localStorage.setItem('llm_url',url);localStorage.setItem('llm_key',key);injectCustomModels();selectModel(mid,null);toggleSettingsModal();}
         window.saveSettings=saveSettings;
+
+        async function testConnection(){
+            var btn=document.getElementById('test-conn-btn'),res=document.getElementById('test-conn-result');
+            var mid=document.getElementById('setting-model-custom').value.trim()||localStorage.getItem('llm_model')||DEFAULT_MODEL;
+            var url=document.getElementById('setting-url').value.trim();
+            var key=document.getElementById('setting-key').value.trim();
+            btn.disabled=true;btn.textContent='Testing...';res.textContent='';res.className='text-[11px] flex-1';
+            try{var r=await fetch('/api/test-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:mid,url:url,key:key})});var d=await r.json();
+                if(d.ok){res.textContent='✓ Connected — '+d.model+': "'+d.response+'"';res.className='text-[11px] flex-1 text-emerald-600';}
+                else{res.textContent='✗ '+d.error;res.className='text-[11px] flex-1 text-red-500';}
+            }catch(e){res.textContent='✗ Network error';res.className='text-[11px] flex-1 text-red-500';}
+            btn.disabled=false;btn.innerHTML='<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Test';
+        }
+        window.testConnection=testConnection;
 
         function deleteCustomModel(id,e){if(e){e.stopPropagation();e.preventDefault();}var cms=JSON.parse(localStorage.getItem('custom_models')||'[]');cms=cms.filter(function(m){return m.id!==id;});localStorage.setItem('custom_models',JSON.stringify(cms));if(localStorage.getItem('llm_model')===id)selectModel(DEFAULT_MODEL,null);injectCustomModels();renderSettingsModelChips();}
         window.deleteCustomModel=deleteCustomModel;

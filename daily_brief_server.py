@@ -3,6 +3,7 @@
 import os
 import glob
 import json
+import subprocess
 import urllib.request
 
 import yaml
@@ -50,7 +51,7 @@ MODEL_PROVIDERS = {
 }
 
 
-def _call_llm(messages: list, url_ov: str = "", key_ov: str = "", model_ov: str = "") -> str:
+def _get_llm_client(model_ov="", url_ov="", key_ov=""):
     model_name = model_ov.strip() if model_ov and model_ov.strip() else "gpt-5.4"
     provider = MODEL_PROVIDERS.get(model_name)
     if provider:
@@ -59,6 +60,11 @@ def _call_llm(messages: list, url_ov: str = "", key_ov: str = "", model_ov: str 
     else:
         base_url = url_ov.strip().rstrip("/") if url_ov and url_ov.strip() else "https://api.openai.com/v1"
         api_key = key_ov.strip() if key_ov and key_ov.strip() else ""
+    return model_name, base_url, api_key
+
+
+def _call_llm(messages: list, url_ov="", key_ov="", model_ov="") -> str:
+    model_name, base_url, api_key = _get_llm_client(model_ov, url_ov, key_ov)
     if not api_key:
         return "⚠️ API Key not configured. Set the corresponding environment variable or add a custom model in Settings."
     try:
@@ -70,6 +76,30 @@ def _call_llm(messages: list, url_ov: str = "", key_ov: str = "", model_ov: str 
     except Exception as e:
         return f"LLM API Error.\n\n**Model:** {model_name}\n**URL:** {base_url}\n**Error:** {e}"
 
+
+def _fetch_url_with_playwright(url: str) -> str:
+    """Use Playwright to fetch and extract text from a URL."""
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            resp = page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            if not resp or not resp.ok:
+                browser.close()
+                return f"[Error: HTTP {resp.status if resp else 'unknown'}]"
+            page.wait_for_timeout(2000)
+            text = page.evaluate("""() => {
+                document.querySelectorAll('script,style,nav,footer,iframe,noscript').forEach(el => el.remove());
+                return document.body.innerText.replace(/\\n\\s*\\n/g, '\\n').trim();
+            }""")
+            browser.close()
+            return text[:12000] if text else "[Empty page content]"
+    except Exception as e:
+        return f"[Playwright error: {e}]"
+
+
+# ── Routes ──
 
 @app.route("/")
 @app.route("/latest")
@@ -111,20 +141,77 @@ def api_search():
         return jsonify([])
 
 
+@app.route("/api/web-fetch", methods=["POST"])
+def api_web_fetch():
+    """Fetch URL content using Playwright for web search feature."""
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"content": "", "error": "No URL provided"})
+    content = _fetch_url_with_playwright(url)
+    return jsonify({"content": content})
+
+
+@app.route("/api/test-connection", methods=["POST"])
+def api_test_connection():
+    """Test LLM API connectivity."""
+    data = request.json or {}
+    model_name, base_url, api_key = _get_llm_client(
+        data.get("model", ""), data.get("url", ""), data.get("key", "")
+    )
+    if not api_key:
+        return jsonify({"ok": False, "error": "API Key is empty"})
+    try:
+        client = OpenAI(base_url=base_url, api_key=api_key)
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": "Say 'ok' in one word."}],
+            max_tokens=10, temperature=0,
+        )
+        return jsonify({"ok": True, "model": model_name, "response": resp.choices[0].message.content[:50]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
 @app.route("/api/deep-read")
 def api_deep_read():
     title = request.args.get("title", "")
     url_param = request.args.get("url", "")
-    prompt = f"请作为资深AI学术研究员，深度中文解析该论文。\n\n标题：{title}\n链接：{url_param}\n\n请按以下结构输出Markdown：\n### 🌟 核心总结\n### 🎯 研究背景\n### 💡 方法与创新\n### 📊 结论与启发"
-    return jsonify({"content": _call_llm([{"role": "user", "content": prompt}], request.args.get("url_ov", ""), request.args.get("key_ov", ""), request.args.get("model_ov", ""))})
+    web_search = request.args.get("web_search", "false") == "true"
+
+    extra_context = ""
+    if web_search and url_param:
+        extra_context = _fetch_url_with_playwright(url_param)
+        if extra_context and not extra_context.startswith("["):
+            extra_context = f"\n\n--- 以下是从论文页面抓取的内容 ---\n{extra_context[:6000]}"
+        else:
+            extra_context = ""
+
+    prompt = f"请作为资深AI学术研究员，深度中文解析该论文。\n\n标题：{title}\n链接：{url_param}{extra_context}\n\n请按以下结构输出Markdown：\n### 🌟 核心总结\n### 🎯 研究背景\n### 💡 方法与创新\n### 📊 结论与启发"
+    return jsonify({"content": _call_llm(
+        [{"role": "user", "content": prompt}],
+        request.args.get("url_ov", ""), request.args.get("key_ov", ""), request.args.get("model_ov", ""),
+    )})
 
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     data = request.json or {}
     msgs = data.get("messages", [])
+    web_search = data.get("web_search", False)
+
     if not any(m.get("role") == "system" for m in msgs):
         msgs.insert(0, {"role": "system", "content": "You are a helpful AI academic assistant. Answer questions about papers accurately."})
+
+    if web_search and msgs:
+        last_msg = msgs[-1].get("content", "")
+        import re
+        urls = re.findall(r'https?://[^\s<>"\']+', last_msg)
+        if urls:
+            fetched = _fetch_url_with_playwright(urls[0])
+            if fetched and not fetched.startswith("["):
+                msgs[-1]["content"] += f"\n\n--- Web content from {urls[0]} ---\n{fetched[:6000]}"
+
     return jsonify({"content": _call_llm(msgs, data.get("url_ov", ""), data.get("key_ov", ""), data.get("model_ov", ""))})
 
 

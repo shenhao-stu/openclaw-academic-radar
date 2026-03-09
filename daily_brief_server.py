@@ -98,17 +98,99 @@ def _call_llm(messages: list, url_ov="", key_ov="", model_ov="") -> str:
 
 
 def _normalize_url(url: str) -> str:
-    """Normalize URLs for better content fetching.
-    e.g. arXiv PDF links → abstract page (HTML is fetchable, PDF binary is not).
-    """
-    # arxiv.org/pdf/XXXX → arxiv.org/abs/XXXX
-    url = re.sub(r'arxiv\.org/pdf/([^\s?#]+?)(?:\.pdf)?([?#]|$)', r'arxiv.org/abs/\1\2', url)
+    """Normalize URLs — convert arXiv HTML variants to PDF for full-text extraction."""
+    # arxiv.org/abs/XXXX or /html/XXXX → /pdf/XXXX (get the actual paper content)
+    url = re.sub(r'arxiv\.org/(?:abs|html)/([^\s?#]+?)(?:\.html)?([?#]|$)', r'arxiv.org/pdf/\1.pdf\2', url)
     return url
 
 
+def _is_pdf_url(url: str) -> bool:
+    """Return True if the URL points to a PDF (by extension or known PDF-serving paths)."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    if path.endswith(".pdf"):
+        return True
+    # arXiv /pdf/ path always serves PDF
+    if "arxiv.org/pdf/" in url.lower():
+        return True
+    return False
+
+
+def _parse_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Extract text from raw PDF bytes using PyMuPDF, with vision OCR fallback for image pages."""
+    import base64 as b64mod
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    MIN_TEXT_CHARS = 80
+
+    def _vision_ocr_page(pix_bytes: bytes) -> str:
+        b64 = b64mod.b64encode(pix_bytes).decode("utf-8")
+        try:
+            client = OpenAI(base_url=VISION_BASE_URL, api_key=VISION_API_TOKEN)
+            msgs = [{"role": "user", "content": [
+                {"type": "text", "text": "Extract ALL text from this page. Output plain text only."},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            ]}]
+            resp = client.chat.completions.create(
+                model=VISION_MODEL, messages=msgs, max_tokens=1536, temperature=0.1,
+            )
+            return _strip_think(resp.choices[0].message.content or "")
+        except Exception as e:
+            return f"[Vision error: {e}]"
+
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        return "[PyMuPDF not installed. Run: pip install pymupdf]"
+
+    import io
+    doc = fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf")
+    total_pages = len(doc)
+    max_pages = min(total_pages, 10)
+    all_text = [""] * max_pages
+    vision_tasks = {}
+
+    for i in range(max_pages):
+        page = doc[i]
+        text = page.get_text("text").strip()
+        if len(text) >= MIN_TEXT_CHARS:
+            all_text[i] = f"--- Page {i+1} ---\n{text}"
+        else:
+            pix = page.get_pixmap(dpi=150)
+            vision_tasks[i] = pix.tobytes("png")
+
+    if vision_tasks:
+        with ThreadPoolExecutor(max_workers=min(3, len(vision_tasks))) as pool:
+            futures = {pool.submit(_vision_ocr_page, img): i for i, img in vision_tasks.items()}
+            for fut in as_completed(futures):
+                idx = futures[fut]
+                all_text[idx] = f"--- Page {idx+1} (OCR) ---\n{fut.result()}"
+
+    doc.close()
+    return "\n\n".join(t for t in all_text if t)
+
+
+def _fetch_pdf_url(url: str) -> str:
+    """Download a PDF from a URL and extract its text via PyMuPDF."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            pdf_bytes = resp.read()
+        text = _parse_pdf_bytes(pdf_bytes)
+        return text if text else "[Empty PDF content]"
+    except Exception as e:
+        return f"[PDF fetch error: {e}]"
+
+
 def _fetch_url_with_playwright(url: str) -> str:
-    """Use Playwright to fetch and extract text from a URL."""
+    """Fetch and extract content from a URL.
+    PDF URLs are downloaded and parsed with PyMuPDF.
+    HTML pages are rendered with Playwright.
+    """
     url = _normalize_url(url)
+    if _is_pdf_url(url):
+        return _fetch_pdf_url(url)
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
@@ -234,13 +316,15 @@ def api_search():
 
 @app.route("/api/web-fetch", methods=["POST"])
 def api_web_fetch():
-    """Fetch URL content using Playwright for web search feature."""
+    """Fetch URL content: PDF URLs via PyMuPDF, HTML pages via Playwright."""
     data = request.json or {}
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"content": "", "error": "No URL provided"})
+    normalized = _normalize_url(url)
+    is_pdf = _is_pdf_url(normalized)
     content = _fetch_url_with_playwright(url)
-    return jsonify({"content": content})
+    return jsonify({"content": content, "is_pdf": is_pdf, "url": normalized})
 
 
 @app.route("/api/test-connection", methods=["POST"])
@@ -330,76 +414,44 @@ def api_vision():
 
 @app.route("/api/parse-pdf", methods=["POST"])
 def api_parse_pdf():
-    """Parse PDF: native text extraction first, vision model fallback for image-heavy pages."""
-    import base64 as b64mod
-    import tempfile
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    """Parse PDF: accepts file upload or a JSON {url} to fetch remotely.
+    Uses PyMuPDF for native text extraction, vision OCR fallback for image pages.
+    """
+    # Support JSON body with url field
+    if request.is_json:
+        data = request.json or {}
+        url = data.get("url", "").strip()
+        if url:
+            content = _fetch_pdf_url(url)
+            return jsonify({"content": content, "source": "url"})
+        return jsonify({"content": "", "error": "No url provided in JSON body"})
 
     f = request.files.get("file")
     if not f:
         return jsonify({"content": "", "error": "No file uploaded"})
-    try:
-        import fitz  # PyMuPDF
-    except ImportError:
-        return jsonify({"content": "", "error": "PyMuPDF not installed. Run: pip install pymupdf"})
 
-    vis_url = (request.form.get("vision_url") or "").strip() or VISION_BASE_URL
-    vis_model = (request.form.get("vision_model") or "").strip() or VISION_MODEL
-    vis_token = (request.form.get("vision_token") or "").strip() or VISION_API_TOKEN
-    MIN_TEXT_CHARS = 80
+    vis_url_ov = (request.form.get("vision_url") or "").strip()
+    vis_model_ov = (request.form.get("vision_model") or "").strip()
+    vis_token_ov = (request.form.get("vision_token") or "").strip()
 
-    def _vision_ocr_page(page_num: int, pix_bytes: bytes) -> str:
-        b64 = b64mod.b64encode(pix_bytes).decode("utf-8")
-        try:
-            client = OpenAI(base_url=vis_url, api_key=vis_token)
-            msgs = [{"role": "user", "content": [
-                {"type": "text", "text": "Extract ALL text from this page. Output plain text only."},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-            ]}]
-            resp = client.chat.completions.create(
-                model=vis_model, messages=msgs, max_tokens=1536, temperature=0.1,
-            )
-            return _strip_think(resp.choices[0].message.content or "")
-        except Exception as e:
-            return f"[Vision error: {e}]"
+    # Override module-level vision settings if provided by client
+    global VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN
+    _orig = (VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN)
+    if vis_url_ov:
+        VISION_BASE_URL = vis_url_ov
+    if vis_model_ov:
+        VISION_MODEL = vis_model_ov
+    if vis_token_ov:
+        VISION_API_TOKEN = vis_token_ov
 
     try:
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
-            f.save(tmp.name)
-            doc = fitz.open(tmp.name)
-            total_pages = len(doc)
-            max_pages = min(total_pages, 10)
-            all_text = [""] * max_pages
-            vision_tasks = {}
-            native_count = 0
-
-            for i in range(max_pages):
-                page = doc[i]
-                text = page.get_text("text").strip()
-                if len(text) >= MIN_TEXT_CHARS:
-                    all_text[i] = f"--- Page {i+1} ---\n{text}"
-                    native_count += 1
-                else:
-                    pix = page.get_pixmap(dpi=150)
-                    vision_tasks[i] = pix.tobytes("png")
-
-            if vision_tasks:
-                with ThreadPoolExecutor(max_workers=min(3, len(vision_tasks))) as pool:
-                    futures = {pool.submit(_vision_ocr_page, i, img): i for i, img in vision_tasks.items()}
-                    for fut in as_completed(futures):
-                        idx = futures[fut]
-                        all_text[idx] = f"--- Page {idx+1} (OCR) ---\n{fut.result()}"
-
-            doc.close()
-            return jsonify({
-                "content": "\n\n".join(t for t in all_text if t),
-                "pages": total_pages,
-                "extracted": max_pages,
-                "native": native_count,
-                "ocr": len(vision_tasks),
-            })
+        pdf_bytes = f.read()
+        content = _parse_pdf_bytes(pdf_bytes)
+        return jsonify({"content": content})
     except Exception as e:
         return jsonify({"content": "", "error": str(e)[:300]})
+    finally:
+        VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN = _orig
 
 
 @app.route("/api/deep-read")

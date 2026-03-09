@@ -631,15 +631,19 @@
             if(webSearch){
                 var urls=_extractUrls(msg);
                 if(urls.length){
-                    var lb0=appendChatBubble('<span class="text-[12px] text-[#4f46e5] flex items-center gap-1.5"><svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Fetching: '+urls[0].substring(0,60)+'…</span>',false);
+                    var isPdfUrl=/\.pdf($|\?)|arxiv\.org\/pdf\//i.test(urls[0]);
+                    var fetchLabel=isPdfUrl?'Parsing PDF: ':'Fetching: ';
+                    var spinnerHtml='<span class="text-[12px] text-[#4f46e5] flex items-center gap-1.5"><svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>'+fetchLabel+urls[0].substring(0,60)+'…</span>';
+                    var lb0=appendChatBubble(spinnerHtml,false);
                     try{
                         var fr=await fetch('/api/web-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:urls[0]})});
                         var fd=await fr.json();
                         lb0.remove();
                         if(fd.content&&!fd.content.startsWith('[')){
-                            contextMsg=fullMsg+'\n\n--- Web content from '+urls[0]+' ---\n'+fd.content.substring(0,6000);
+                            var label=fd.is_pdf?'PDF content from':'Web content from';
+                            contextMsg=fullMsg+'\n\n--- '+label+' '+urls[0]+' ---\n'+fd.content.substring(0,8000);
                         } else {
-                            appendChatBubble('<span class="text-[12px] text-orange-500">⚠️ Could not fetch page: '+(fd.error||fd.content||'empty')+'</span>',false);
+                            appendChatBubble('<span class="text-[12px] text-orange-500">⚠️ Could not fetch: '+(fd.error||fd.content||'empty')+'</span>',false);
                         }
                     }catch(e){lb0.remove();}
                 }

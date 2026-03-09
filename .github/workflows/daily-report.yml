@@ -1,0 +1,73 @@
+name: Daily Academic Radar
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 10:00 AM Beijing time (UTC+8)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Generate daily report
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          RADAR_TOPICS: ${{ vars.RADAR_TOPICS || '' }}
+        run: python daily_ai_brief.py
+
+      - name: Deploy to gh-pages
+        run: |
+          LATEST=$(ls -t reports/daily_brief_*.html 2>/dev/null | head -1)
+          if [ -z "$LATEST" ]; then
+            echo "No report generated, skipping deploy"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stash report files before switching branches
+          DEPLOY_DIR=$(mktemp -d)
+          cp reports/daily_brief_*.html "$DEPLOY_DIR/"
+          cp "$LATEST" "$DEPLOY_DIR/index.html"
+
+          # Switch to gh-pages (create orphan if it doesn't exist)
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git checkout gh-pages
+            git pull origin gh-pages --rebase
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
+          fi
+
+          # Wipe everything and replace with only HTML reports + index + .nojekyll
+          git rm -rf . 2>/dev/null || true
+          cp "$DEPLOY_DIR"/*.html .
+          touch .nojekyll
+
+          # Commit and push
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "deploy: daily report $(date -u +%Y-%m-%d)"
+            git push origin gh-pages
+          fi

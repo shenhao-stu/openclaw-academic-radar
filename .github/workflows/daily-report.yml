@@ -32,6 +32,18 @@ jobs:
           RADAR_TOPICS: ${{ vars.RADAR_TOPICS || '' }}
         run: python daily_ai_brief.py
 
+      - name: Commit updated SOTA cache
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .sota_cache.json
+          if git diff --cached --quiet; then
+            echo "SOTA cache unchanged, skipping commit"
+          else
+            git commit -m "chore: update SOTA cache [skip ci]"
+            git push origin main
+          fi
+
       - name: Deploy to gh-pages
         run: |
           LATEST=$(ls -t reports/daily_brief_*.html 2>/dev/null | head -1)

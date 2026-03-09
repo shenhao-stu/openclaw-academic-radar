@@ -426,9 +426,33 @@ def api_chat():
         last_msg = msgs[-1].get("content", "")
         urls = re.findall(r'https?://[^\s<>"\']+', last_msg)
         if urls:
+            # URL in message: fetch page content with Playwright
             fetched = _fetch_url_with_playwright(urls[0])
             if fetched and not fetched.startswith("["):
                 msgs[-1]["content"] += f"\n\n--- Web content from {urls[0]} ---\n{fetched[:6000]}"
+        elif TAVILY_KEY:
+            # No URL: use Tavily to search the web for the query
+            try:
+                body = {
+                    "api_key": TAVILY_KEY, "query": last_msg[:400],
+                    "search_depth": "basic", "max_results": 5,
+                    "include_answer": True, "include_images": False,
+                }
+                payload = json.dumps(body).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://api.tavily.com/search", data=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+                resp = json.loads(urllib.request.urlopen(req, timeout=20).read())
+                snippets = []
+                if resp.get("answer"):
+                    snippets.append(f"Summary: {resp['answer']}")
+                for r in resp.get("results", [])[:5]:
+                    snippets.append(f"- [{r.get('title','')}]({r.get('url','')}): {r.get('content','')[:300]}")
+                if snippets:
+                    msgs[-1]["content"] += "\n\n--- Web search results ---\n" + "\n".join(snippets)
+            except Exception as e:
+                pass  # silently continue without web context
 
     return jsonify({"content": _call_llm(msgs, data.get("url_ov", ""), data.get("key_ov", ""), data.get("model_ov", ""))})
 

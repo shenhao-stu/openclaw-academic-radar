@@ -117,23 +117,34 @@ def _is_pdf_url(url: str) -> bool:
     return False
 
 
-def _parse_pdf_bytes(pdf_bytes: bytes) -> str:
-    """Extract text from raw PDF bytes using PyMuPDF, with vision OCR fallback for image pages."""
+def _parse_pdf_bytes(pdf_bytes: bytes, vis_url: str = "", vis_model: str = "", vis_token: str = "") -> dict:
+    """Extract text from raw PDF bytes using PyMuPDF, with optional vision OCR fallback.
+
+    Returns a dict with keys:
+      content (str), pages (int), native (int), ocr (int), error (str, optional)
+    Vision OCR is only attempted when vis_url, vis_model, and vis_token are all non-empty.
+    """
     import base64 as b64mod
+    import io
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     MIN_TEXT_CHARS = 80
+    # Resolve vision settings: caller overrides → module-level globals
+    _vis_url = vis_url or VISION_BASE_URL
+    _vis_model = vis_model or VISION_MODEL
+    _vis_token = vis_token or VISION_API_TOKEN
+    vision_enabled = bool(_vis_url and _vis_model and _vis_token)
 
     def _vision_ocr_page(pix_bytes: bytes) -> str:
         b64 = b64mod.b64encode(pix_bytes).decode("utf-8")
         try:
-            client = OpenAI(base_url=VISION_BASE_URL, api_key=VISION_API_TOKEN)
+            client = OpenAI(base_url=_vis_url, api_key=_vis_token)
             msgs = [{"role": "user", "content": [
                 {"type": "text", "text": "Extract ALL text from this page. Output plain text only."},
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
             ]}]
             resp = client.chat.completions.create(
-                model=VISION_MODEL, messages=msgs, max_tokens=1536, temperature=0.1,
+                model=_vis_model, messages=msgs, max_tokens=1536, temperature=0.1,
             )
             return _strip_think(resp.choices[0].message.content or "")
         except Exception as e:
@@ -142,23 +153,31 @@ def _parse_pdf_bytes(pdf_bytes: bytes) -> str:
     try:
         import fitz  # PyMuPDF
     except ImportError:
-        return "[PyMuPDF not installed. Run: pip install pymupdf]"
+        return {"content": "", "pages": 0, "native": 0, "ocr": 0,
+                "error": "PyMuPDF not installed. Run: pip install pymupdf"}
 
-    import io
-    doc = fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf")
+    try:
+        doc = fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf")
+    except Exception as e:
+        return {"content": "", "pages": 0, "native": 0, "ocr": 0, "error": f"PDF open error: {e}"}
+
     total_pages = len(doc)
     max_pages = min(total_pages, 10)
     all_text = [""] * max_pages
     vision_tasks = {}
+    native_count = 0
 
     for i in range(max_pages):
         page = doc[i]
         text = page.get_text("text").strip()
         if len(text) >= MIN_TEXT_CHARS:
             all_text[i] = f"--- Page {i+1} ---\n{text}"
-        else:
+            native_count += 1
+        elif vision_enabled:
             pix = page.get_pixmap(dpi=150)
             vision_tasks[i] = pix.tobytes("png")
+        else:
+            all_text[i] = f"--- Page {i+1} (no text, vision disabled) ---"
 
     if vision_tasks:
         with ThreadPoolExecutor(max_workers=min(3, len(vision_tasks))) as pool:
@@ -168,7 +187,8 @@ def _parse_pdf_bytes(pdf_bytes: bytes) -> str:
                 all_text[idx] = f"--- Page {idx+1} (OCR) ---\n{fut.result()}"
 
     doc.close()
-    return "\n\n".join(t for t in all_text if t)
+    content = "\n\n".join(t for t in all_text if t)
+    return {"content": content, "pages": total_pages, "native": native_count, "ocr": len(vision_tasks)}
 
 
 def _fetch_pdf_url(url: str) -> str:
@@ -177,8 +197,10 @@ def _fetch_pdf_url(url: str) -> str:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             pdf_bytes = resp.read()
-        text = _parse_pdf_bytes(pdf_bytes)
-        return text if text else "[Empty PDF content]"
+        result = _parse_pdf_bytes(pdf_bytes)
+        if result.get("error"):
+            return f"[PDF parse error: {result['error']}]"
+        return result["content"] if result["content"] else "[Empty PDF content]"
     except Exception as e:
         return f"[PDF fetch error: {e}]"
 
@@ -415,7 +437,7 @@ def api_vision():
 @app.route("/api/parse-pdf", methods=["POST"])
 def api_parse_pdf():
     """Parse PDF: accepts file upload or a JSON {url} to fetch remotely.
-    Uses PyMuPDF for native text extraction, vision OCR fallback for image pages.
+    Uses PyMuPDF for native text extraction, optional vision OCR for image pages.
     """
     # Support JSON body with url field
     if request.is_json:
@@ -434,24 +456,12 @@ def api_parse_pdf():
     vis_model_ov = (request.form.get("vision_model") or "").strip()
     vis_token_ov = (request.form.get("vision_token") or "").strip()
 
-    # Override module-level vision settings if provided by client
-    global VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN
-    _orig = (VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN)
-    if vis_url_ov:
-        VISION_BASE_URL = vis_url_ov
-    if vis_model_ov:
-        VISION_MODEL = vis_model_ov
-    if vis_token_ov:
-        VISION_API_TOKEN = vis_token_ov
-
     try:
         pdf_bytes = f.read()
-        content = _parse_pdf_bytes(pdf_bytes)
-        return jsonify({"content": content})
+        result = _parse_pdf_bytes(pdf_bytes, vis_url=vis_url_ov, vis_model=vis_model_ov, vis_token=vis_token_ov)
+        return jsonify(result)
     except Exception as e:
-        return jsonify({"content": "", "error": str(e)[:300]})
-    finally:
-        VISION_BASE_URL, VISION_MODEL, VISION_API_TOKEN = _orig
+        return jsonify({"content": "", "pages": 0, "native": 0, "ocr": 0, "error": str(e)[:300]})
 
 
 @app.route("/api/deep-read")

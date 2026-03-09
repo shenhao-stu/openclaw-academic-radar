@@ -391,6 +391,32 @@ def main():
     with open(template_path, "r", encoding="utf-8") as f:
         template = f.read()
 
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    out_path = os.path.join(reports_dir, f"daily_brief_{date_str}.html")
+
+    # Build report list JSON for static history navigation (GitHub Pages)
+    import glob as _glob
+    existing = sorted(
+        _glob.glob(os.path.join(reports_dir, "daily_brief_*.html")),
+        reverse=True,
+    )
+    # Include today's report (not yet written) at the front
+    today_fname = f"daily_brief_{date_str}.html"
+    all_fnames = [today_fname] + [
+        os.path.basename(p) for p in existing
+        if os.path.basename(p) != today_fname
+    ]
+    report_list = [
+        {
+            "filename": fn,
+            "date": fn.replace("daily_brief_", "").replace(".html", ""),
+            "path": f"reports/{fn}",
+        }
+        for fn in all_fnames
+    ]
+    report_list_json = json.dumps(report_list, ensure_ascii=False)
+
     model_name = os.environ.get("OHMYAPI_MODEL_NAME", "gpt-5.4")
     final_html = (
         template
@@ -401,11 +427,9 @@ def main():
         .replace("<!-- {{TABS}} -->", tabs_html)
         .replace("<!-- {{PAPERS}} -->", papers_html)
         .replace("{{DEFAULT_MODEL}}", model_name)
+        .replace("<!-- {{REPORT_LIST_JSON}} -->", report_list_json)
     )
 
-    reports_dir = os.path.join(BASE_DIR, "reports")
-    os.makedirs(reports_dir, exist_ok=True)
-    out_path = os.path.join(reports_dir, f"daily_brief_{date_str}.html")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(final_html)
     print(f"Report generated: {out_path}")

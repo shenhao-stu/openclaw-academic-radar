@@ -149,6 +149,16 @@ def _build_live_page(report_path: str) -> str:
         date_str = os.path.basename(report_path).replace("daily_brief_", "").replace(".html", "")
         result = result.replace("<!-- {{DATE}} -->", date_str)
         result = result.replace("{{DEFAULT_MODEL}}", OHMYAPI_MODEL_NAME)
+        # Inject report list for history navigation (live server uses /api/history,
+        # but also embed it so the JS can read it without an extra fetch)
+        files = sorted(glob.glob(os.path.join(REPORTS_DIR, "daily_brief_*.html")), reverse=True)
+        report_list = json.dumps([
+            {"filename": os.path.basename(f),
+             "date": os.path.basename(f).replace("daily_brief_", "").replace(".html", ""),
+             "path": f"/{os.path.basename(f)}"}
+            for f in files
+        ])
+        result = result.replace("<!-- {{REPORT_LIST_JSON}} -->", report_list)
         return result
 
     return report

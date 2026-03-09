@@ -147,6 +147,7 @@
             </div>
         </div>
     </main>
+    <script id="report-list-data" type="application/json"><!-- {{REPORT_LIST_JSON}} --></script>
 
     <!-- Deep Read Modal -->
     <div id="deepReadModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center opacity-0 transition-opacity duration-300">
@@ -425,7 +426,29 @@
         window.searchCustomTopic=searchCustomTopic;
 
         // ─── History ───
-        async function toggleHistory(){var d=document.getElementById('history-dropdown');d.classList.toggle('hidden');if(!d.classList.contains('hidden')&&!document.getElementById('history-list').children.length){try{var r=await fetch('/api/history');var data=await r.json();var l=document.getElementById('history-list');data.forEach(function(i){l.innerHTML+='<li><a href="/'+i.filename+'" class="block px-4 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition">'+i.date+'</a></li>';});}catch(e){}}}
+        async function toggleHistory(){
+            var d=document.getElementById('history-dropdown');
+            d.classList.toggle('hidden');
+            if(!d.classList.contains('hidden')&&!document.getElementById('history-list').children.length){
+                var items=[];
+                // Static mode: read embedded report list injected at build time
+                try{
+                    var raw=(document.getElementById('report-list-data')||{}).textContent||'';
+                    raw=raw.replace(/<!--.*?-->/g,'').trim();
+                    if(raw)items=JSON.parse(raw);
+                }catch(e){}
+                // Interactive mode: fall back to Flask API
+                if(!items.length){
+                    try{var r=await fetch('/api/history');items=await r.json();}catch(e){}
+                }
+                var l=document.getElementById('history-list');
+                if(!items.length){l.innerHTML='<li class="px-4 py-2 text-[12px] text-gray-400">暂无历史记录</li>';return;}
+                items.forEach(function(i){
+                    var href=i.path||('/'+i.filename);
+                    l.innerHTML+='<li><a href="'+href+'" class="block px-4 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition">'+i.date+'</a></li>';
+                });
+            }
+        }
         window.toggleHistory=toggleHistory;
         document.addEventListener('click',function(e){var d=document.getElementById('history-dropdown');if(d&&!d.classList.contains('hidden')&&!e.target.closest('.relative'))d.classList.add('hidden');});
 

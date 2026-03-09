@@ -434,7 +434,7 @@
                 // Static mode: read embedded report list injected at build time
                 try{
                     var raw=(document.getElementById('report-list-data')||{}).textContent||'';
-                    raw=raw.replace(/<!--.*?-->/g,'').trim();
+                    raw=raw.replace(new RegExp('<!' + '--[\\s\\S]*?--' + '>','g'),'').trim();
                     if(raw)items=JSON.parse(raw);
                 }catch(e){}
                 // Interactive mode: fall back to Flask API

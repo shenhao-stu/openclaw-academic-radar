@@ -263,27 +263,59 @@ def _fetch_sota_via_playwright() -> list:
         return []
 
 
+SOTA_CACHE_PATH = os.path.join(BASE_DIR, ".sota_cache.json")
+
+
+def _load_sota_cache() -> list:
+    """Load the last successfully fetched SOTA models from local cache."""
+    try:
+        with open(SOTA_CACHE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list) and len(data) >= 3:
+            return data
+    except Exception:
+        pass
+    return []
+
+
+def _save_sota_cache(models: list) -> None:
+    """Persist successfully fetched SOTA models to local cache."""
+    try:
+        with open(SOTA_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(models, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Failed to save SOTA cache: {e}")
+
+
 def fetch_sota_models() -> str:
     """Fetch SOTA models from arena.ai leaderboard.
 
     Strategy:
     1. Render arena.ai/leaderboard with Playwright and parse the displayed table.
-    2. Fallback to hardcoded recent data if Playwright fails.
+    2. On success, write results to .sota_cache.json so future fallbacks stay fresh.
+    3. On failure, fall back to cached results (last successful fetch).
+    4. If cache is also empty, use hardcoded bootstrap data.
     """
     print("Fetching SOTA models via Playwright...")
     models = _fetch_sota_via_playwright()
 
-    if not models:
-        print("Playwright arena fetch failed, using fallback data")
-        models = [
-            {"rank": 1, "name": "claude-opus-4-6", "org": "Anthropic", "score": 1504},
-            {"rank": 2, "name": "claude-opus-4-6-thinking", "org": "Anthropic", "score": 1502},
-            {"rank": 3, "name": "gemini-3.1-pro-preview", "org": "Google", "score": 1500},
-            {"rank": 4, "name": "grok-4.20-beta1", "org": "xAI", "score": 1491},
-            {"rank": 5, "name": "gemini-3-pro", "org": "Google", "score": 1485},
-        ]
-    else:
+    if models:
         print(f"Playwright arena fetch: got {len(models)} models, top={models[0]['name']} ({models[0]['score']})")
+        _save_sota_cache(models)
+    else:
+        print("Playwright arena fetch failed, trying cache...")
+        models = _load_sota_cache()
+        if models:
+            print(f"Using cached SOTA data: top={models[0]['name']} ({models[0]['score']})")
+        else:
+            print("No cache found, using hardcoded bootstrap fallback")
+            models = [
+                {"rank": 1, "name": "claude-opus-4-6", "org": "Anthropic", "score": 1504},
+                {"rank": 2, "name": "claude-opus-4-6-thinking", "org": "Anthropic", "score": 1502},
+                {"rank": 3, "name": "gemini-3.1-pro-preview", "org": "Google", "score": 1500},
+                {"rank": 4, "name": "grok-4.20-beta1", "org": "xAI", "score": 1491},
+                {"rank": 5, "name": "gemini-3-pro", "org": "Google", "score": 1485},
+            ]
 
     rank_colors = {
         1: "text-transparent bg-clip-text bg-gradient-to-br from-blue-500 to-indigo-600",

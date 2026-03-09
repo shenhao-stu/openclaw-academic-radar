@@ -97,8 +97,18 @@ def _call_llm(messages: list, url_ov="", key_ov="", model_ov="") -> str:
         return f"LLM API Error.\n\n**Model:** {model_name}\n**URL:** {base_url}\n**Error:** {e}"
 
 
+def _normalize_url(url: str) -> str:
+    """Normalize URLs for better content fetching.
+    e.g. arXiv PDF links → abstract page (HTML is fetchable, PDF binary is not).
+    """
+    # arxiv.org/pdf/XXXX → arxiv.org/abs/XXXX
+    url = re.sub(r'arxiv\.org/pdf/([^\s?#]+?)(?:\.pdf)?([?#]|$)', r'arxiv.org/abs/\1\2', url)
+    return url
+
+
 def _fetch_url_with_playwright(url: str) -> str:
     """Use Playwright to fetch and extract text from a URL."""
+    url = _normalize_url(url)
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
@@ -417,7 +427,6 @@ def api_deep_read():
 def api_chat():
     data = request.json or {}
     msgs = data.get("messages", [])
-    web_search = data.get("web_search", False)
 
     if not any(m.get("role") == "system" for m in msgs):
         msgs.insert(0, {"role": "system", "content": (
@@ -426,17 +435,6 @@ def api_chat():
             "use it as the primary source to answer the question. "
             "Never claim you cannot access URLs — if content is provided in the message, use it directly."
         )})
-
-    if web_search and msgs:
-        last_msg = msgs[-1].get("content", "")
-        # Exclude Chinese punctuation and common trailing chars from URL match
-        urls = re.findall(r'https?://[^\s<>"\'，。！？、；：\u3000\uff00-\uffef]+', last_msg)
-        # Also strip any trailing ASCII punctuation that snuck in
-        urls = [re.sub(r'[.,;:!?)]+$', '', u) for u in urls]
-        if urls:
-            fetched = _fetch_url_with_playwright(urls[0])
-            if fetched and not fetched.startswith("["):
-                msgs[-1]["content"] += f"\n\n--- Web content from {urls[0]} ---\n{fetched[:6000]}"
 
     return jsonify({"content": _call_llm(msgs, data.get("url_ov", ""), data.get("key_ov", ""), data.get("model_ov", ""))})
 

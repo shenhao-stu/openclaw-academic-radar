@@ -610,6 +610,12 @@
             return html;
         }
 
+        // Extract clean URLs from text (excludes Chinese punctuation and trailing ASCII punct)
+        function _extractUrls(text){
+            var raw=text.match(/https?:\/\/[^\s<>"'，。！？、；：\u3000\uff00-\uffef]+/g)||[];
+            return raw.map(function(u){return u.replace(/[.,;:!?)]+$/,'');});
+        }
+
         async function sendChatMessage(){var input=document.getElementById('chatInput'),msg=input.value.trim();if(!msg&&!pendingAttachments.length)return;if(!document.getElementById('setupState').classList.contains('hidden')){document.getElementById('setupState').classList.add('hidden');chatCtx=[];}input.value='';input.style.height='';
             var sentAtts=pendingAttachments.slice();
             var fullMsg=msg;
@@ -620,7 +626,25 @@
             d.className='interactive-bubble ml-auto w-fit max-w-[85%] bg-gray-100 dark:bg-[#252525] text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl rounded-tr-sm mb-4 text-[14px] leading-relaxed shadow-sm fade-in text-left break-words';
             d.innerHTML=previewHtml+(msg?'<div>'+msg.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div>':'<div class="text-[12px] text-gray-400 italic">附件已发送</div>');
             c.appendChild(d);c.scrollTo({top:c.scrollHeight,behavior:'smooth'});
-            chatCtx.push({role:'user',content:fullMsg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm,web_search:webSearch})});var dd=await r.json();lb.innerHTML=marked.parse(dd.content);chatCtx.push({role:'assistant',content:dd.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
+            // If web search is on and message contains URLs, fetch page content first
+            var contextMsg=fullMsg;
+            if(webSearch){
+                var urls=_extractUrls(msg);
+                if(urls.length){
+                    var lb0=appendChatBubble('<span class="text-[12px] text-[#4f46e5] flex items-center gap-1.5"><svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Fetching: '+urls[0].substring(0,60)+'…</span>',false);
+                    try{
+                        var fr=await fetch('/api/web-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:urls[0]})});
+                        var fd=await fr.json();
+                        lb0.remove();
+                        if(fd.content&&!fd.content.startsWith('[')){
+                            contextMsg=fullMsg+'\n\n--- Web content from '+urls[0]+' ---\n'+fd.content.substring(0,6000);
+                        } else {
+                            appendChatBubble('<span class="text-[12px] text-orange-500">⚠️ Could not fetch page: '+(fd.error||fd.content||'empty')+'</span>',false);
+                        }
+                    }catch(e){lb0.remove();}
+                }
+            }
+            chatCtx.push({role:'user',content:contextMsg});var lh='<div class="flex gap-1.5 items-center px-1"><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div><div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div></div>';var lb=appendChatBubble(lh,false);lb.innerHTML=lh;var cu=localStorage.getItem('llm_url')||'',ck=localStorage.getItem('llm_key')||'',cm=localStorage.getItem('llm_model')||'';try{var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:chatCtx,url_ov:cu,key_ov:ck,model_ov:cm})});var dd=await r.json();lb.innerHTML=marked.parse(dd.content);chatCtx.push({role:'assistant',content:dd.content});updateContextIndicator();}catch(err){lb.innerHTML='<div class="text-red-500 text-sm">Error: '+err+'</div>';}}
         window.sendChatMessage=sendChatMessage;
 
         // ─── Model ───

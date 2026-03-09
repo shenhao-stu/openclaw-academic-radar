@@ -443,8 +443,17 @@
                 }
                 var l=document.getElementById('history-list');
                 if(!items.length){l.innerHTML='<li class="px-4 py-2 text-[12px] text-gray-400">暂无历史记录</li>';return;}
+                // Derive the repo root from the current URL so paths work on both
+                // GitHub Pages (/repo-name/) and local server (/).
+                // Strip everything after the last "/" that doesn't end with "/"
+                // to get the directory containing index.html / the root.
+                var base=window.location.pathname;
+                // Walk up to the repo root: if we're in /repo/reports/file.html,
+                // base should be /repo/; if at /repo/ or /repo/index.html it stays /repo/
+                base=base.replace(/\/reports\/[^/]*$/, '/').replace(/\/[^/]*\.html$/, '/');
+                if(!base.endsWith('/'))base+='/';
                 items.forEach(function(i){
-                    var href=i.path||('/'+i.filename);
+                    var href=base+'reports/'+(i.filename||'');
                     l.innerHTML+='<li><a href="'+href+'" class="block px-4 py-2 text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2c2c2c] transition">'+i.date+'</a></li>';
                 });
             }

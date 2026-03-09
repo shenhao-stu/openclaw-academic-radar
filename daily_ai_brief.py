@@ -411,7 +411,6 @@ def main():
         {
             "filename": fn,
             "date": fn.replace("daily_brief_", "").replace(".html", ""),
-            "path": f"reports/{fn}",
         }
         for fn in all_fnames
     ]

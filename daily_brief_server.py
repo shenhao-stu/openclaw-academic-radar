@@ -154,8 +154,7 @@ def _build_live_page(report_path: str) -> str:
         files = sorted(glob.glob(os.path.join(REPORTS_DIR, "daily_brief_*.html")), reverse=True)
         report_list = json.dumps([
             {"filename": os.path.basename(f),
-             "date": os.path.basename(f).replace("daily_brief_", "").replace(".html", ""),
-             "path": f"/{os.path.basename(f)}"}
+             "date": os.path.basename(f).replace("daily_brief_", "").replace(".html", "")}
             for f in files
         ])
         result = result.replace("<!-- {{REPORT_LIST_JSON}} -->", report_list)

@@ -26,11 +26,72 @@ jobs:
           pip install pyyaml playwright
           python -m playwright install --with-deps chromium
 
+      - name: Fetch gh-pages history
+        run: |
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            mkdir -p .gh-pages-history/reports
+            git show origin/gh-pages:.nojekyll >/dev/null 2>&1 || true
+            mapfile -t HISTORY_FILES < <(git ls-tree -r --name-only origin/gh-pages reports | grep '^reports/daily_brief_.*\.html$' || true)
+            if [ ${#HISTORY_FILES[@]} -gt 0 ]; then
+              for file in "${HISTORY_FILES[@]}"; do
+                mkdir -p ".gh-pages-history/$(dirname "$file")"
+                git show "origin/gh-pages:$file" > ".gh-pages-history/$file"
+              done
+            fi
+          fi
+
       - name: Generate daily report
         env:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           RADAR_TOPICS: ${{ vars.RADAR_TOPICS || '' }}
-        run: python daily_ai_brief.py
+        run: |
+          HISTORY_JSON=$(python - <<'PY'
+          import json, os
+          history_dir = os.path.join('.gh-pages-history', 'reports')
+          items = []
+          if os.path.isdir(history_dir):
+              for name in sorted(os.listdir(history_dir), reverse=True):
+                  if name.startswith('daily_brief_') and name.endswith('.html'):
+                      items.append({
+                          'filename': name,
+                          'date': name.replace('daily_brief_', '').replace('.html', ''),
+                      })
+          print(json.dumps(items, ensure_ascii=False))
+          PY
+          )
+          REPORT_HISTORY_JSON="$HISTORY_JSON" python daily_ai_brief.py
+
+      - name: Rebuild static report pages
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from daily_ai_brief import _build_report_list, _load_template, rewrite_report_with_latest_template
+
+          reports_dir = 'reports'
+          history_dir = os.path.join('.gh-pages-history', 'reports')
+          os.makedirs(reports_dir, exist_ok=True)
+
+          history_names = sorted(os.listdir(history_dir)) if os.path.isdir(history_dir) else []
+          for name in history_names:
+              if not (name.startswith('daily_brief_') and name.endswith('.html')):
+                  continue
+              src = os.path.join(history_dir, name)
+              dst = os.path.join(reports_dir, name)
+              if not os.path.exists(dst):
+                  with open(src, 'r', encoding='utf-8') as fsrc, open(dst, 'w', encoding='utf-8') as fdst:
+                      fdst.write(fsrc.read())
+
+          report_list = _build_report_list()
+          template = _load_template()
+          for name in sorted(os.listdir(reports_dir)):
+              if name.startswith('daily_brief_') and name.endswith('.html'):
+                  rewrite_report_with_latest_template(os.path.join(reports_dir, name), template=template, report_list=report_list)
+
+          with open('.report-manifest.json', 'w', encoding='utf-8') as f:
+              json.dump(report_list, f, ensure_ascii=False)
+          PY
 
       - name: Commit updated SOTA cache
         run: |
@@ -55,9 +116,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stash report files before switching branches
+          # Stash rebuilt report files before switching branches
           DEPLOY_DIR=$(mktemp -d)
           cp reports/daily_brief_*.html "$DEPLOY_DIR/"
+          cp .report-manifest.json "$DEPLOY_DIR/"
           LATEST_NAME=$(basename "$LATEST")
 
           # Switch to gh-pages (create orphan if it doesn't exist)
@@ -70,9 +132,22 @@ jobs:
             git rm -rf . 2>/dev/null || true
           fi
 
-          # Ensure reports/ directory exists and copy new reports into it (preserve history)
+          # Remove obsolete generated report files, then publish rebuilt reports
           mkdir -p reports
+          DEPLOY_DIR="$DEPLOY_DIR" python - <<'PY'
+          import json
+          import os
+
+          with open(os.path.join(os.environ['DEPLOY_DIR'], '.report-manifest.json'), 'r', encoding='utf-8') as f:
+              wanted = {item['filename'] for item in json.load(f)}
+
+          reports_dir = 'reports'
+          for name in os.listdir(reports_dir):
+              if name.startswith('daily_brief_') and name.endswith('.html') and name not in wanted:
+                  os.remove(os.path.join(reports_dir, name))
+          PY
           cp "$DEPLOY_DIR"/*.html reports/
+          rm -f "$DEPLOY_DIR/.report-manifest.json"
           # index.html always points to the latest report
           cp "reports/$LATEST_NAME" index.html
           touch .nojekyll

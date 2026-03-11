@@ -5,6 +5,7 @@ Supports custom topics via RADAR_TOPICS environment variable:
   Format: Chinese Label|English Query, separated by semicolons.
 """
 
+import glob
 import json
 import os
 import re
@@ -349,6 +350,109 @@ def get_paper_html(paper: dict) -> str:
                 <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg></button></div></div>'''
 
 
+def _load_template() -> str:
+    template_path = os.path.join(BASE_DIR, "template.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _build_report_list(today_fname: str | None = None) -> list[dict]:
+    history_json = os.environ.get("REPORT_HISTORY_JSON", "").strip()
+    if history_json:
+        try:
+            items = json.loads(history_json)
+            if isinstance(items, list):
+                report_list = []
+                seen = set()
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    filename = str(item.get("filename", "")).strip()
+                    if not filename or filename in seen:
+                        continue
+                    seen.add(filename)
+                    report_list.append({
+                        "filename": filename,
+                        "date": str(item.get("date") or filename.replace("daily_brief_", "").replace(".html", "")),
+                    })
+                if today_fname and today_fname not in seen:
+                    report_list.insert(0, {
+                        "filename": today_fname,
+                        "date": today_fname.replace("daily_brief_", "").replace(".html", ""),
+                    })
+                return report_list
+        except Exception as e:
+            print(f"Invalid REPORT_HISTORY_JSON: {e}")
+
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    existing = sorted(
+        glob.glob(os.path.join(reports_dir, "daily_brief_*.html")),
+        reverse=True,
+    )
+    all_fnames = []
+    if today_fname:
+        all_fnames.append(today_fname)
+    all_fnames.extend(
+        os.path.basename(p) for p in existing
+        if os.path.basename(p) != today_fname
+    )
+    return [
+        {
+            "filename": fn,
+            "date": fn.replace("daily_brief_", "").replace(".html", ""),
+        }
+        for fn in all_fnames
+    ]
+
+
+MAIN_OPEN = '<main class="max-w-[1400px]'
+MAIN_CLOSE = "</main>"
+
+
+def _render_report_html(template: str, main_html: str, date_str: str, report_list: list[dict], model_name: str) -> str:
+    tmpl_main_start = template.find(MAIN_OPEN)
+    tmpl_main_end = template.find(MAIN_CLOSE, tmpl_main_start)
+    if tmpl_main_start == -1 or tmpl_main_end == -1:
+        raise ValueError("template main section not found")
+    return (
+        template[:tmpl_main_start]
+        + main_html
+        + template[tmpl_main_end + len(MAIN_CLOSE):]
+    ).replace("<!-- {{DATE}} -->", date_str).replace(
+        "<!-- {{REPORT_LIST_JSON}} -->", json.dumps(report_list, ensure_ascii=False)
+    ).replace("{{DEFAULT_MODEL}}", model_name)
+
+
+def _extract_main(report_html: str) -> str | None:
+    report_main_start = report_html.find(MAIN_OPEN)
+    report_main_end = report_html.find(MAIN_CLOSE, report_main_start)
+    if report_main_start == -1 or report_main_end == -1:
+        return None
+    return report_html[report_main_start:report_main_end + len(MAIN_CLOSE)]
+
+
+def rewrite_report_with_latest_template(report_path: str, template: str | None = None, report_list: list[dict] | None = None, model_name: str | None = None):
+    if template is None:
+        template = _load_template()
+    if report_list is None:
+        report_list = _build_report_list()
+    if model_name is None:
+        model_name = os.environ.get("OHMYAPI_MODEL_NAME", "gpt-5.4")
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        report_html = f.read()
+
+    main_html = _extract_main(report_html)
+    if not main_html:
+        return False
+
+    date_str = os.path.basename(report_path).replace("daily_brief_", "").replace(".html", "")
+    rendered = _render_report_html(template, main_html, date_str, report_list, model_name)
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(rendered)
+    return True
+
+
 def main():
     date_str = datetime.now().strftime("%Y-%m-%d")
     topics = parse_topics()
@@ -387,35 +491,14 @@ def main():
         papers_html += f'''<div class="col-span-full mt-2 flex justify-center pb-4"><button onclick="loadMorePapers('{tab_id}')" class="px-5 py-2 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#333] hover:border-gray-300 text-gray-500 text-[12px] font-medium rounded-full transition-all shadow-sm flex items-center gap-2">发现更多优质内容 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button></div>'''
         papers_html += "</div></div>"
 
-    template_path = os.path.join(BASE_DIR, "template.html")
-    with open(template_path, "r", encoding="utf-8") as f:
-        template = f.read()
+    template = _load_template()
 
     reports_dir = os.path.join(BASE_DIR, "reports")
     os.makedirs(reports_dir, exist_ok=True)
-    out_path = os.path.join(reports_dir, f"daily_brief_{date_str}.html")
-
-    # Build report list JSON for static history navigation (GitHub Pages)
-    import glob as _glob
-    existing = sorted(
-        _glob.glob(os.path.join(reports_dir, "daily_brief_*.html")),
-        reverse=True,
-    )
-    # Include today's report (not yet written) at the front
     today_fname = f"daily_brief_{date_str}.html"
-    all_fnames = [today_fname] + [
-        os.path.basename(p) for p in existing
-        if os.path.basename(p) != today_fname
-    ]
-    report_list = [
-        {
-            "filename": fn,
-            "date": fn.replace("daily_brief_", "").replace(".html", ""),
-        }
-        for fn in all_fnames
-    ]
-    report_list_json = json.dumps(report_list, ensure_ascii=False)
+    out_path = os.path.join(reports_dir, today_fname)
 
+    report_list = _build_report_list(today_fname)
     model_name = os.environ.get("OHMYAPI_MODEL_NAME", "gpt-5.4")
     final_html = (
         template
@@ -426,7 +509,7 @@ def main():
         .replace("<!-- {{TABS}} -->", tabs_html)
         .replace("<!-- {{PAPERS}} -->", papers_html)
         .replace("{{DEFAULT_MODEL}}", model_name)
-        .replace("<!-- {{REPORT_LIST_JSON}} -->", report_list_json)
+        .replace("<!-- {{REPORT_LIST_JSON}} -->", json.dumps(report_list, ensure_ascii=False))
     )
 
     with open(out_path, "w", encoding="utf-8") as f:

@@ -137,6 +137,7 @@ jobs:
           DEPLOY_DIR="$DEPLOY_DIR" python - <<'PY'
           import json
           import os
+          import shutil
 
           with open(os.path.join(os.environ['DEPLOY_DIR'], '.report-manifest.json'), 'r', encoding='utf-8') as f:
               wanted = {item['filename'] for item in json.load(f)}
@@ -145,6 +146,16 @@ jobs:
           for name in os.listdir(reports_dir):
               if name.startswith('daily_brief_') and name.endswith('.html') and name not in wanted:
                   os.remove(os.path.join(reports_dir, name))
+
+          for path in ('.gh-pages-history', '__pycache__'):
+              if os.path.isdir(path):
+                  shutil.rmtree(path)
+          for path in ('.report-manifest.json',):
+              if os.path.exists(path):
+                  os.remove(path)
+          for name in os.listdir('.'):
+              if name.startswith('daily_brief_') and name.endswith('.html'):
+                  os.remove(name)
           PY
           cp "$DEPLOY_DIR"/*.html reports/
           rm -f "$DEPLOY_DIR/.report-manifest.json"

@@ -31,7 +31,6 @@ jobs:
           if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
             git fetch origin gh-pages
             mkdir -p .gh-pages-history/reports
-            git show origin/gh-pages:.nojekyll >/dev/null 2>&1 || true
             mapfile -t HISTORY_FILES < <(git ls-tree -r --name-only origin/gh-pages reports | grep '^reports/daily_brief_.*\.html$' || true)
             if [ ${#HISTORY_FILES[@]} -gt 0 ]; then
               for file in "${HISTORY_FILES[@]}"; do
@@ -161,7 +160,6 @@ jobs:
           rm -f "$DEPLOY_DIR/.report-manifest.json"
           # index.html always points to the latest report
           cp "reports/$LATEST_NAME" index.html
-          touch .nojekyll
 
           # Commit and push
           git add -A

@@ -287,6 +287,14 @@ def index():
     return _build_live_page(files[0])
 
 
+@app.route("/assets/<path:filename>")
+def serve_asset(filename):
+    fp = os.path.join(BASE_DIR, "assets", filename)
+    if not os.path.exists(fp):
+        return "Not Found", 404
+    return send_file(fp)
+
+
 @app.route("/<path:filename>")
 def serve_report(filename):
     fp = os.path.join(REPORTS_DIR, filename)

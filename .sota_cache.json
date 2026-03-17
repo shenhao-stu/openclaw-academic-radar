@@ -1,26 +1,26 @@
 [
   {
     "rank": 1,
-    "name": "claude-opus-4-6",
+    "name": "claude-opus-4-6-thinking",
     "org": "Anthropic",
-    "score": 1503
+    "score": 1501
   },
   {
     "rank": 2,
-    "name": "claude-opus-4-6-thinking",
+    "name": "claude-opus-4-6",
     "org": "Anthropic",
-    "score": 1503
+    "score": 1501
   },
   {
     "rank": 3,
-    "name": "grok-4.20-beta1",
-    "org": "xAI",
-    "score": 1496
+    "name": "gemini-3.1-pro-preview",
+    "org": "Google",
+    "score": 1493
   },
   {
     "rank": 4,
-    "name": "gemini-3.1-pro-preview",
-    "org": "Google",
+    "name": "grok-4.20-beta1",
+    "org": "xAI",
     "score": 1492
   },
   {

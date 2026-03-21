@@ -9,13 +9,13 @@
     "rank": 2,
     "name": "claude-opus-4-6",
     "org": "Anthropic",
-    "score": 1500
+    "score": 1501
   },
   {
     "rank": 3,
     "name": "gemini-3.1-pro-preview",
     "org": "Google",
-    "score": 1494
+    "score": 1493
   },
   {
     "rank": 4,
@@ -27,6 +27,6 @@
     "rank": 5,
     "name": "gemini-3-pro",
     "org": "Google",
-    "score": 1487
+    "score": 1486
   }
 ]

@@ -3,13 +3,13 @@
     "rank": 1,
     "name": "claude-opus-4-6-thinking",
     "org": "Anthropic",
-    "score": 1502
+    "score": 1504
   },
   {
     "rank": 2,
     "name": "claude-opus-4-6",
     "org": "Anthropic",
-    "score": 1501
+    "score": 1500
   },
   {
     "rank": 3,
@@ -21,7 +21,7 @@
     "rank": 4,
     "name": "grok-4.20-beta1",
     "org": "xAI",
-    "score": 1492
+    "score": 1491
   },
   {
     "rank": 5,

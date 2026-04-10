@@ -3,30 +3,30 @@
     "rank": 1,
     "name": "claude-opus-4-6-thinking",
     "org": "Anthropic",
-    "score": 1503
+    "score": 1504
   },
   {
     "rank": 2,
     "name": "claude-opus-4-6",
     "org": "Anthropic",
-    "score": 1497
+    "score": 1496
   },
   {
     "rank": 3,
     "name": "gemini-3.1-pro-preview",
     "org": "Google",
-    "score": 1493
+    "score": 1492
   },
   {
     "rank": 4,
-    "name": "grok-4.20-beta1",
-    "org": "xAI",
-    "score": 1490
+    "name": "muse-spark",
+    "org": "",
+    "score": 1487
   },
   {
     "rank": 5,
-    "name": "gemini-3-pro",
-    "org": "Google",
+    "name": "grok-4.20-beta1",
+    "org": "xAI",
     "score": 1486
   }
 ]

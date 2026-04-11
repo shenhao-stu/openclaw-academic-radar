@@ -13,20 +13,20 @@
   },
   {
     "rank": 3,
+    "name": "muse-spark",
+    "org": "",
+    "score": 1493
+  },
+  {
+    "rank": 4,
     "name": "gemini-3.1-pro-preview",
     "org": "Google",
     "score": 1492
   },
   {
-    "rank": 4,
-    "name": "muse-spark",
-    "org": "",
-    "score": 1487
-  },
-  {
     "rank": 5,
-    "name": "grok-4.20-beta1",
-    "org": "xAI",
+    "name": "gemini-3-pro",
+    "org": "Google",
     "score": 1486
   }
 ]
